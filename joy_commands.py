@@ -1,10 +1,13 @@
+#!/usr/bin/env python3
+
 import numpy as np
-from horizon.rhc.taskInterface import TaskInterface
 from scipy.spatial.transform import Rotation as R
 from sensor_msgs.msg import Joy
+from geometry_msgs.msg import WrenchStamped
 import rospy
 import math
 import colorama
+
 
 class JoyForce:
     def __init__(self):
@@ -15,11 +18,16 @@ class JoyForce:
         self.angle = 0
         rospy.Subscriber('/joy', Joy, self.joy_callback)
         rospy.wait_for_message('/joy', Joy, timeout=0.5)
+        
+        self.link_name = rospy.get_param('~force_sensor_link', default='base_link')
+        wrench_topic = rospy.get_param('~wrench_topic', default='/joy_commands/wrench')
+        
+        self.wrench_pub = rospy.Publisher(wrench_topic, WrenchStamped, queue_size=1)
 
     def joy_callback(self, msg: Joy):
         self.joy_msg = msg
 
-    def run(self, solution):
+    def run(self):
 
         if np.abs(self.joy_msg.axes[0]) > 0.1 or np.abs(self.joy_msg.axes[1]) > 0.1:
             # move base on x-axis in local frame
@@ -46,7 +54,7 @@ class JoyForce:
             self.force[2] = 0
 
         # rotate vector
-        self.force = self._rotate_vector(self.force, solution['q'][[6, 3, 4, 5], 0])
+        # self.force = self._rotate_vector(self.force, solution['q'][[6, 3, 4, 5], 0])
         # self.angle = self._angle(rot_vec, solution['q'][[6, 3, 4, 5], 0])
 
     def _quaternion_multiply(self, q1, q2):
@@ -97,9 +105,20 @@ class JoyForce:
 
 if __name__ == '__main__':
 
-    jc = JoyForce()
     rospy.init_node('joy_trial')
+    jc = JoyForce()
 
-    while True:
+    while not rospy.is_shutdown():
         jc.run()
-        print(jc.getForce())
+        
+        wrench = WrenchStamped()
+        
+        wrench.header.frame_id = jc.link_name
+        
+        f = jc.getForce()
+        
+        wrench.wrench.force.x = -f[1]
+        wrench.wrench.force.y = f[0]
+        wrench.wrench.torque.z = f[2]
+        
+        jc.wrench_pub.publish(wrench)
