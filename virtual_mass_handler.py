@@ -159,7 +159,7 @@ class VirtualMassHandler:
         self.ee_wrench = np.array([msg.wrench.force.x, msg.wrench.force.y, msg.wrench.force.z,
                                    msg.wrench.torque.x, msg.wrench.torque.y, msg.wrench.torque.z])
 
-    def __integrate(self, ee_current_pose, ee_current_vel, ee_wrench_sensed):
+    def __integrate(self, ee_current_pose, ee_current_vel, ee_wrench_sensed, wrench_local_frame=False):
 
         # get wrench
         force_sensed = ee_wrench_sensed[:3]
@@ -170,10 +170,10 @@ class VirtualMassHandler:
 
         ee_vel_lin = ee_vel['ee_vel_linear'][:self.sys_dim]
         ee_pos = ee_pose['ee_pos'][:self.sys_dim].full()
-        ee_rot = ee_pose['ee_rot']
 
-        if self.input_mode == 'sensor':
+        if self.input_mode == 'sensor' and wrench_local_frame:
             # rotate in local ee
+            ee_rot = ee_pose['ee_rot']
             force_sensed_rot = (ee_rot @ force_sensed)[:self.sys_dim]
         else:
             force_sensed_rot = force_sensed
@@ -308,7 +308,8 @@ class VirtualMassHandler:
         # get reference
         self.__integrate(self.solution['q'][:, 0],
                          self.solution['v'][:, 0],
-                         force_sensed)
+                         force_sensed,
+                         wrench_local_frame=True)
 
         self.ee_ref[:self.sys_dim, :] = self.ee_integrated[:self.sys_dim, :]
 
