@@ -2,15 +2,17 @@
 
     <arg name="force_sensor_link" default="base_link" />
     <arg name="wrench_topic" default="joy_commands/wrench" />
+    <arg name="max_force" default=100.0 />
 
 
     <node pkg="joy" type="joy_node" name="joy_node" output="screen">      
-        <param name="autorepeat" value="200"/>
+        <param name="autorepeat_rate" value="200.0" type="double" />
     </node>
 
     <node pkg="concert_horizon" type="joy_commands.py" name="joy_commands" output="screen">
         <param name="force_sensor_link" value="$(arg force_sensor_link)" />
         <param name="wrench_topic" value= "$(arg wrench_topic)" />
+        <param name="max_force" value= "$(arg max_force)" />
     </node>
 
 </launch>

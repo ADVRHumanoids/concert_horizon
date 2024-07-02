@@ -13,12 +13,11 @@ class JoyForce:
     def __init__(self):
 
         self.joy_msg = None
-        self.force_weight = 15.
         self.force = np.zeros(3)
         self.angle = 0
         rospy.Subscriber('/joy', Joy, self.joy_callback)
         rospy.wait_for_message('/joy', Joy, timeout=0.5)
-        
+        self.force_weight = rospy.get_param('~max_force', default=100.0)
         self.link_name = rospy.get_param('~force_sensor_link', default='base_link')
         wrench_topic = rospy.get_param('~wrench_topic', default='/joy_commands/wrench')
         
