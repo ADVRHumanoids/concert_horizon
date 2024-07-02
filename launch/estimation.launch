@@ -1,0 +1,9 @@
+<launch>
+    <node pkg="cartesian_interface" type="force_estimation_node" name="force_estimation_node" output="screen">
+        <remap from="/robot_description" to="/xbotcore/robot_description"/>
+        <remap from="/robot_description_semantic" to="/xbotcore/robot_description_semantic"/>
+        <param name="links" type="yaml" value="[ee_E]"/>
+        <param name="chains" type="yaml" value="[chain_E]"/>
+        <param name="ee_E/dofs" type="yaml" value="[0, 1, 2]"/>
+    </node>
+</launch>

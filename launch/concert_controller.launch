@@ -1,0 +1,17 @@
+<launch>
+
+    <arg name="xbot" default="false" />
+
+    <node pkg="kyon_controller" type="controller" name="kyon_controller_node" output="screen">
+        <remap if="$(arg xbot)" from="/robot_description" to="/xbotcore/robot_description"/>
+        <remap if="$(arg xbot)" from="/robot_description_semantic" to="/xbotcore/robot_description_semantic"/>
+        <param name="config" textfile="$(find concert_horizon)/config/concert_controller_config.yaml"/>
+        <param name="rate" value="1000"/>
+    </node>
+
+    <node pkg="concert_horizon" type="receding_horizon.py" name="mpc_node" output="screen">
+        <remap if="$(arg xbot)" from="/robot_description" to="/xbotcore/robot_description"/>
+        <remap if="$(arg xbot)" from="/robot_description_semantic" to="/xbotcore/robot_description_semantic"/>
+    </node>
+
+</launch>
