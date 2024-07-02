@@ -34,7 +34,7 @@ class ObstacleGeneratorWrapper:
         self.occupancy_map_width = 6.0
         self.occupancy_map_height = 6.0
         self.occupancy_map_resolution = 0.01
-        self.occupancy_map_topic_names = ["/filtered_local_map"] #, "/sonar_map"]
+        self.occupancy_map_topic_names = ["/filtered_local_map", "/sonar_map"]
 
         self.obs_origin_par_list = [] # list of origin parameters for each obstacle
         self.obs_weight_par_list = [] # list of weight parameters for each obstacle

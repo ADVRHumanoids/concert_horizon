@@ -120,8 +120,6 @@ FK = kin_dyn.fk('J_wheel_A')
 init_pos_wheel = FK(q=kin_dyn.mapToQ(q_init))['ee_pos']
 base_init[2] = -init_pos_wheel[2] + wheel_radius
 
-
-
 model = FullModelInverseDynamics(problem=prb,
                                  kd=kin_dyn,
                                  q_init=q_init,
