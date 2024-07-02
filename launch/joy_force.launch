@@ -1,0 +1,16 @@
+<launch>
+
+    <arg name="force_sensor_link" default="base_link" />
+    <arg name="wrench_topic" default="joy_commands/wrench" />
+
+
+    <node pkg="joy" type="joy_node" name="joy_node" output="screen">      
+        <param name="autorepeat" value="200"/>
+    </node>
+
+    <node pkg="concert_horizon" type="joy_commands.py" name="joy_commands" output="screen">
+        <param name="force_sensor_link" value="$(arg force_sensor_link)" />
+        <param name="wrench_topic" value= "$(arg wrench_topic)" />
+    </node>
+
+</launch>
