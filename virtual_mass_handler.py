@@ -16,7 +16,7 @@ from modes import OperationMode
 
 
 class VirtualMassHandler:
-    def __init__(self, kin_dyn, initial_solution, ti: taskInterface):
+    def __init__(self, kin_dyn, initial_solution, ti: taskInterface, input_mode='sensor'):
 
         self.kin_dyn = kin_dyn
 
@@ -81,7 +81,7 @@ class VirtualMassHandler:
 
         # ===============================================
 
-        self.input_mode = 'joystick'  # 'joystick' 'sensor'
+        self.input_mode = input_mode  # 'joystick' 'sensor'
         self.operation_mode = OperationMode.IDLE
 
         if self.input_mode == 'joystick':

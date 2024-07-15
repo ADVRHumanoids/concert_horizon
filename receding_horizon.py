@@ -32,6 +32,8 @@ obstacle_avoidance = True
 
 rospy.init_node('concert_receding')
 
+virtual_mass_input_mode = rospy.get_param('~input_mode', 'sensor')
+
 if obstacle_avoidance:
     roscpp_init('concert_obstacles', [])
 
@@ -217,7 +219,7 @@ time_elapsed_solving_list = list()
 time_elapsed_all_list = list()
 
 
-vmc = VirtualMassHandler(kin_dyn, solution, ti)
+vmc = VirtualMassHandler(kin_dyn, solution, ti, input_mode=virtual_mass_input_mode)
 
 print(f"robot controller starting in mode: {vmc.getMode()}")
 
