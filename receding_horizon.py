@@ -117,6 +117,7 @@ else:
 
 base_init = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
 
+
 wheel_radius = 0.16
 FK = kin_dyn.fk('J_wheel_A')
 init_pos_wheel = FK(q=kin_dyn.mapToQ(q_init))['ee_pos']
@@ -140,7 +141,7 @@ if not robot:
 # cartesian_marker_process = subprocess.Popen(cartesian_marker_command.split(), start_new_session=True)
 
 ti = TaskInterface(prb=prb, model=model)
-ti.setTaskFromYaml(rospkg.RosPack().get_path('kyon_controller') + '/config/concert_config.yaml')
+ti.setTaskFromYaml(rospkg.RosPack().get_path('concert_horizon') + '/config/concert_config.yaml')
 
 ee_ref = ti.getTask('ee_force').getValues()[:, 0]
 ee_pos_0 = kin_dyn.fk('ee_E')(q=model.q0)['ee_pos'][:, 0]

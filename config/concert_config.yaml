@@ -129,7 +129,7 @@ posture_cart:
 posture_arm:
   type: Postural
   weight: *w_postural_arm
-  indices: [8, 9, 10, 11, 12, 13] # wheels at the beginning of q
+  indices: [8, 9, 10, 11, 12, 13, 14] # wheels at the beginning of q
 #  indices: [0, 1, 2, 3, 4, 5]
   nodes: all
 

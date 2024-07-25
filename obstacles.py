@@ -19,16 +19,16 @@ class ObstacleGeneratorWrapper:
 
         self.obs_gen = None
 
-        self.max_obs_num = 50
+        self.max_obs_num = 50 # maximum number of obstacle allowed
         self.radius_sphere_robot_x = 1.
         self.radius_sphere_robot_y = 0.8
         self.radius_sphere_robot_z = 0.01
 
         self.f_obs_grid = 0  # function of the inputs
-        self.obstacle_radius = 0.15
-        self.weight_cost_obs = 0.002  # 0.001 # 0.0025
-        self.angle_threshold = 0.2
-        self.min_blind_angle = -np.pi/6
+        self.obstacle_radius = 0.15 # radius of obstacle
+        self.weight_cost_obs = 0.001  # 0.001 # 0.0025 # cost for each obstacle (repulsive force)
+        self.angle_threshold = 0.2 # angle resolution to remove unnecessary obstacles
+        self.min_blind_angle = -np.pi/6 #  blindsight of the robot, does not consider obstacles
         self.max_blind_angle = - self.min_blind_angle
 
         self.occupancy_map_width = 6.0
@@ -57,7 +57,7 @@ class ObstacleGeneratorWrapper:
 
         self.obs_gen.setMaxObstacleNum(self.max_obs_num) # maximum number of obstacle allowed
         self.obs_gen.setObstacleRadius(self.obstacle_radius) # radius of obstacle
-        self.obs_gen.setAngleThreshold(self.angle_threshold) # angle resolution to remove unnecessary obstacles
+        self.obs_gen.setAngleThreshold(self.angle_threshold) # angle resolution to remove unnecessary obstacles (the space is radially divided into sectors of given angle)
         self.obs_gen.setBlindAngle(self.min_blind_angle, self.max_blind_angle) # blindsight of the robot, does not consider obstacles
 
         # obs_fun = CasadiObstacle().simpleFormulation()

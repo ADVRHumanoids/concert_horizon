@@ -28,7 +28,7 @@ class VirtualMassHandler:
         # d_virtual = np.array([20, 20])
 
         # expose this outside
-        self.m_virtual = np.array([50, 50, 50])
+        self.m_virtual = np.array([30, 30, 30])
         self.k_virtual = np.array([0, 0, 0])
         self.d_virtual = np.array([50, 50, 50])
 
@@ -75,7 +75,7 @@ class VirtualMassHandler:
         self.ee_ref = self.ee_task.getValues()
         self.ee_ref[3:7, :] = np.array([[0, 0, 0, 1]]).T
 
-        self.ee_homing_posture = copy.copy(self.solution['q'][15:, :])
+        self.ee_homing_posture = copy.copy(self.solution['q'][15:22, :])
         # ee z task
         # self.ee_z_task = ti.getTask('ee_z_force')
 
@@ -89,6 +89,7 @@ class VirtualMassHandler:
         elif self.input_mode == 'sensor':
             self.__init_subscribers()
 
+        # compute initial wrench offset
         wrench_init_rate = rospy.Rate(500)
         for i in range(50):
             self.wrench_offset = self.ee_wrench
@@ -128,7 +129,7 @@ class VirtualMassHandler:
 
     def __capture_homing(self, req):
         if req.data:
-            self.ee_homing_posture = copy.copy(self.solution['q'][15:, :])
+            self.ee_homing_posture = copy.copy(self.solution['q'][15:22, :])
 
         return {'success': True}
 
@@ -145,7 +146,7 @@ class VirtualMassHandler:
 
     def __init_subscribers(self):
         print('Subscribing to force estimation topic...')
-        rospy.Subscriber('/cartesian/force_estimation/ee_E', WrenchStamped, self.__wrench_callback)
+        rospy.Subscriber('/force_estimation/local_filtered', WrenchStamped, self.__wrench_callback) # /cartesian/force_estimation/ee_E
         print("done.")
 
     def __init_virtual_mass_controller(self):
@@ -177,6 +178,8 @@ class VirtualMassHandler:
             force_sensed_rot = (ee_rot @ force_sensed)[:self.sys_dim]
         else:
             force_sensed_rot = force_sensed
+        
+        # force_sensed_rot = force_sensed
 
         # ignore z if follow me is on
         if self.operation_mode == OperationMode.FOLLOW_ME:
@@ -223,7 +226,7 @@ class VirtualMassHandler:
             self.posture_cart_task.setWeight(0.)
 
             # self.posture_arm_task.setRef(self.solution['q'][7:13, :])
-            self.posture_arm_task.setRef(self.solution['q'][15:, :])  # saving the current position of the arm
+            self.posture_arm_task.setRef(self.solution['q'][15:22, :])  # saving the current position of the arm
             self.posture_arm_task.setWeight(0.1)
             self.operation_mode = OperationMode.FOLLOW_ME
 
@@ -236,7 +239,7 @@ class VirtualMassHandler:
             self.posture_cart_task.setWeight(0.)  # in velocity
 
             # self.posture_arm_task.setRef(self.solution['q'][7:13, :])
-            self.posture_arm_task.setRef(self.solution['q'][15:, :])  # saving the current position of the arm
+            self.posture_arm_task.setRef(self.solution['q'][15:22, :])  # saving the current position of the arm
             self.posture_arm_task.setWeight(0.1)
 
             self.operation_mode = OperationMode.HYBRID
