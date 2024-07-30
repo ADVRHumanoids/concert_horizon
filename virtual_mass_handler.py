@@ -8,6 +8,7 @@ import rospy
 import numpy as np
 import copy
 from horizon.rhc import taskInterface
+from scipy.spatial.transform import Rotation
 
 from force_joystick import ForceJoystick
 from joy_commands import JoyForce
@@ -30,7 +31,7 @@ class VirtualMassHandler:
         # expose this outside
         self.m_virtual = np.array([30, 30, 30])
         self.k_virtual = np.array([0, 0, 0])
-        self.d_virtual = np.array([50, 50, 50])
+        self.d_virtual = np.array([70, 70, 70])
 
         # critical damping
         # 2 * np.sqrt(k_virtual[0] * m_virtual[0]
@@ -45,10 +46,14 @@ class VirtualMassHandler:
         # ee task
         self.ee_task_name = 'ee_force'
         self.ee_task = ti.getTask(self.ee_task_name)
-
+        
         ## posture task
         self.posture_arm_name = 'posture_arm'
         self.posture_arm_task = ti.getTask(self.posture_arm_name)
+        
+        ## base task
+        self.base_force_name = 'base_force'
+        self.base_force_task = ti.getTask(self.base_force_name)
 
         ## required for omnisteering
         # floating base task
@@ -56,14 +61,29 @@ class VirtualMassHandler:
         self.posture_cart_task = ti.getTask(self.posture_cart_name)
 
         # kin fun of end effector
-        self.ee_fk_pose = kin_dyn.fk(self.ee_name)
-        self.ee_fk_vel = kin_dyn.frameVelocity(self.ee_name, ti.model.kd_frame)
+        self.ee_fk_pose_fun = kin_dyn.fk(self.ee_name)
+        self.ee_fk_vel_fun = kin_dyn.frameVelocity(self.ee_name, ti.model.kd_frame)
 
-        self.ee_inital_pose = self.ee_fk_pose(q=self.solution['q'][:, 0])
-        self.ee_initial_vel = self.ee_fk_vel(q=self.solution['q'][:, 0], qdot=self.solution['v'][:, 0])
-
-        self.ee_initial_pos = copy.copy(self.ee_inital_pose['ee_pos'][:self.sys_dim].full())
+        # get pose and linear+angular velocity
+        self.ee_initial_pose = self.ee_fk_pose_fun(q=self.solution['q'][:, 0])
+        self.ee_initial_vel = self.ee_fk_vel_fun(q=self.solution['q'][:, 0], qdot=self.solution['v'][:, 0])
+        
+        # get position and linear velocity
+        self.ee_initial_pos = copy.copy(self.ee_initial_pose['ee_pos'][:self.sys_dim].full())
         self.ee_initial_vel_lin = copy.copy(self.ee_initial_vel['ee_vel_linear'][:self.sys_dim])
+
+        # kin_dyn function of base
+        self.base_fk_pose_fun = kin_dyn.fk('base_link')
+        self.base_fk_vel_fun = kin_dyn.frameVelocity('base_link', ti.model.kd_frame)
+
+        # get yaw angle of base
+        self.base_initial_rot =  self.base_fk_pose_fun(q=self.solution['q'][:, 0])['ee_rot']
+        self.base_initial_yaw = Rotation.from_matrix(self.base_initial_rot).as_euler("XYZ")[2]
+
+        # get yaw velocity of base
+        self.base_initial_vel_yaw = self.base_fk_vel_fun(q=self.solution['q'][:, 0], qdot=self.solution['v'][:, 0])['ee_vel_angular'][2]
+
+        self.ee_xy_base_yaw = np.array([[self.ee_initial_pos[0][0], self.ee_initial_pos[1][0], self.base_initial_yaw]]).T
 
         # set initial pose
         self.virtual_mass_controller.setPositionReference(self.ee_initial_pos)
@@ -71,9 +91,13 @@ class VirtualMassHandler:
         # set initial state
         self.ee_integrated = np.vstack([self.ee_initial_pos, self.ee_initial_vel_lin])
 
+        # get reference of ee task force
         self.ee_wrench = np.zeros(6)
         self.ee_ref = self.ee_task.getValues()
         self.ee_ref[3:7, :] = np.array([[0, 0, 0, 1]]).T
+
+        # get reference of base task force
+        self.base_ref = self.base_force_task.getValues()
 
         self.ee_homing_posture = copy.copy(self.solution['q'][15:22, :])
         # ee z task
@@ -166,11 +190,20 @@ class VirtualMassHandler:
         force_sensed = ee_wrench_sensed[:3]
 
         # get current position of the ee on xy
-        ee_pose = self.ee_fk_pose(q=ee_current_pose)
-        ee_vel = self.ee_fk_vel(q=ee_current_pose, qdot=ee_current_vel)
+        ee_pose = self.ee_fk_pose_fun(q=ee_current_pose)
+        ee_vel = self.ee_fk_vel_fun(q=ee_current_pose, qdot=ee_current_vel)
 
-        ee_vel_lin = ee_vel['ee_vel_linear'][:self.sys_dim]
         ee_pos = ee_pose['ee_pos'][:self.sys_dim].full()
+        ee_vel_lin = ee_vel['ee_vel_linear'][:self.sys_dim]
+        
+
+        # get current yaw angle of the base
+        base_pose = self.base_fk_pose_fun(q=ee_current_pose)
+        base_vel = self.base_fk_vel_fun(q=ee_current_pose, qdot=ee_current_vel)
+
+        base_yaw = Rotation.from_matrix(base_pose['ee_rot']).as_euler("XYZ")[2]
+        base_yaw_vel = base_vel['ee_vel_angular'][2]
+
 
         if self.input_mode == 'sensor' and wrench_local_frame:
             # rotate in local ee
@@ -178,8 +211,6 @@ class VirtualMassHandler:
             force_sensed_rot = (ee_rot @ force_sensed)[:self.sys_dim]
         else:
             force_sensed_rot = force_sensed
-        
-        # force_sensed_rot = force_sensed
 
         # ignore z if follow me is on
         if self.operation_mode == OperationMode.FOLLOW_ME:
@@ -192,7 +223,15 @@ class VirtualMassHandler:
             self.virtual_mass_controller.update(self.ee_integrated[:, 0], force_sensed_rot[:self.sys_dim])
         else:
             # with real state
-            self.virtual_mass_controller.update(np.vstack([ee_pos, ee_vel_lin]), force_sensed_rot[:self.sys_dim])
+            
+            # using xy of ee and yaw of base
+            ee_xy_base_yaw = np.array([[ee_pos[0][0], ee_pos[1][0], base_yaw]]).T
+            ee_xy_base_yaw_vel = np.hstack([ee_current_vel[:2].reshape(1, 2), base_yaw_vel])
+
+            self.virtual_mass_controller.update(np.vstack([ee_xy_base_yaw, ee_xy_base_yaw_vel]), force_sensed_rot[:self.sys_dim])
+
+            # using xyz of ee
+            # self.virtual_mass_controller.update(np.vstack([ee_pos, ee_vel_lin]), force_sensed_rot[:self.sys_dim])
 
         self.ee_integrated = self.virtual_mass_controller.getIntegratedState()
 
@@ -221,13 +260,14 @@ class VirtualMassHandler:
 
             # activate ee task
             self.ee_task.setWeight(1.0)
+            # self.base_force_task.setWeight(1.0)
 
             # only for OMNISTEERING
             self.posture_cart_task.setWeight(0.)
 
             # self.posture_arm_task.setRef(self.solution['q'][7:13, :])
             self.posture_arm_task.setRef(self.solution['q'][15:22, :])  # saving the current position of the arm
-            self.posture_arm_task.setWeight(0.1)
+            self.posture_arm_task.setWeight(1.0)
             self.operation_mode = OperationMode.FOLLOW_ME
 
         elif mode == OperationMode.HYBRID:
@@ -314,7 +354,13 @@ class VirtualMassHandler:
                          force_sensed,
                          wrench_local_frame=True)
 
-        self.ee_ref[:self.sys_dim, :] = self.ee_integrated[:self.sys_dim, :]
+        # using xyz of ee
+        self.ee_ref[:2, :] = self.ee_integrated[:2, :]
+        self.base_ref[5] = self.ee_integrated[2,:]
+        
+        # using xy of ee and yaw of base
+        # self.ee_ref[:self.sys_dim, :] = self.ee_integrated[:self.sys_dim, :]
+
 
         if self.operation_mode != OperationMode.IDLE:
             self.ee_task.setRef(self.ee_ref)

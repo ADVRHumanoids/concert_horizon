@@ -25,6 +25,7 @@ solver:
 
 costs:
   - ee_force
+  - base_force
 #  - ee_xy_force
 #  - ee_z_force
 #  - ee_ci
@@ -40,6 +41,7 @@ costs:
     - &w_vel 0.01
     - &w_acc 1e-2
     - &w_e_f 0. # starting with zero weight for ee task
+    - &w_e_fb 0.
 #    - &w_e_xy_f 1.
 #    - &w_e_z_f 1.
 #    - &w_e_ci 1.
@@ -55,6 +57,13 @@ ee_force:
   indices: [0, 1, 2]
   nodes: all
   weight: *w_e_f
+
+base_force:
+  type: Cartesian
+  distal_link: base_link
+  indices: [5]
+  nodes: all
+  weight: *w_e_fb
 
 #ee_xy_force:
 #  type: Cartesian
