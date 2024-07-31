@@ -21,9 +21,9 @@ class ForceJoystick:
         if 'damp' not in opt:
             opt['damp'] = np.zeros(self.__dim)
 
-        self.__mass = opt['mass'] # virtual mass
-        self.__spring = opt['spring'] # damping coefficient
-        self.__damp = opt['damp'] # spring coefficient
+        self.__mass = opt['mass']  # virtual mass
+        self.__spring = opt['spring']  # damping coefficient
+        self.__damp = opt['damp']  # spring coefficient
 
         self.__dt = dt
 
@@ -80,7 +80,9 @@ class ForceJoystick:
 
         # mass-spring-damper
         x = cs.vertcat(p, v)
+
         xdot = cs.vertcat(v, (F - self.__damp * (v - v0) - self.__spring * (p - p0))/self.__mass)
+
 
         self.integrator = self.__parameteric_RK4(x, F, xdot, p0)
 
@@ -93,7 +95,7 @@ class ForceJoystick:
 
             x_current = int_state.full()
 
-            self.__x_int[:, step_i] =  x_current.flatten()
+            self.__x_int[:, step_i] = x_current.flatten()
 
     def getIntegratedState(self):
 

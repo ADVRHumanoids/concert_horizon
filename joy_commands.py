@@ -1,5 +1,4 @@
 import numpy as np
-from horizon.rhc.taskInterface import TaskInterface
 from scipy.spatial.transform import Rotation as R
 from sensor_msgs.msg import Joy
 import rospy
@@ -47,7 +46,6 @@ class JoyForce:
 
         # rotate vector
         self.force = self._rotate_vector(self.force, solution['q'][[6, 3, 4, 5], 0])
-        # self.angle = self._angle(rot_vec, solution['q'][[6, 3, 4, 5], 0])
 
     def _quaternion_multiply(self, q1, q2):
         w1, x1, y1, z1 = q1

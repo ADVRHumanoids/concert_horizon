@@ -54,14 +54,14 @@ costs:
 ee_force:
   type: Cartesian
   distal_link: ee_E
-  indices: [0, 1, 2]
+  indices: [0, 1]
   nodes: all
   weight: *w_e_f
 
 base_force:
   type: Cartesian
   distal_link: base_link
-  indices: [5]
+  indices: [3, 4, 5]
   nodes: all
   weight: *w_e_fb
 
