@@ -26,9 +26,9 @@ class ObstacleGeneratorWrapper:
 
         self.f_obs_grid = 0  # function of the inputs
         self.obstacle_radius = 0.15 # radius of obstacle
-        self.weight_cost_obs = 0.0005  # 0.001 # 0.0025 # cost for each obstacle (repulsive force)
+        self.weight_cost_obs = 0.0008  # 0.001 # 0.0025 # cost for each obstacle (repulsive force)
         self.angle_threshold = 0.2 # angle resolution to remove unnecessary obstacles
-        self.min_blind_angle = -np.pi/6 #  blindsight of the robot, does not consider obstacles
+        self.min_blind_angle = -np.pi/6 # blindsight of the robot, does not consider obstacles
         self.max_blind_angle = - self.min_blind_angle
 
         self.occupancy_map_width = 6.0

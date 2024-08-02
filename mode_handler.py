@@ -19,14 +19,14 @@ class ModeHandler:
     def init_services(self):
 
         print('Opening services for mode of operation...\n')
-        # teaching mode
-        self.follow_me_mode_service = rospy.Service('/force_mpc/operation_mode/follow_me/switch', SetBool, self.set_follow_me_mode)
         # driving mode
-        self.teach_mode_service = rospy.Service('/force_mpc/operation_mode/teach/switch', SetBool, self.set_teach_mode)
+        self.follow_me_mode_service = rospy.Service('/force_mpc/operation_mode/follow_me/switch', SetBool, self.set_follow_me_mode)
+        # teaching mode
+        # self.teach_mode_service = rospy.Service('/force_mpc/operation_mode/teach/switch', SetBool, self.set_teach_mode)
         # hybrid mode
-        self.hybrid_mode_service = rospy.Service('/force_mpc/operation_mode/hybrid/switch', SetBool, self.set_hybrid_mode)
+        # self.hybrid_mode_service = rospy.Service('/force_mpc/operation_mode/hybrid/switch', SetBool, self.set_hybrid_mode)
         # homing mode
-        self.homing_mode_service = rospy.Service('/force_mpc/operation_mode/homing/switch', SetBool, self.set_homing_mode)
+        # self.homing_mode_service = rospy.Service('/force_mpc/operation_mode/homing/switch', SetBool, self.set_homing_mode)
 
         print("done.\n")
 

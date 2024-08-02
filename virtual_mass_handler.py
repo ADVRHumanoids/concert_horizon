@@ -31,9 +31,9 @@ class VirtualMassHandler:
         # d_virtual = np.array([20, 20])
 
         # expose this outside
-        self.m_virtual = np.array([30, 30, 30])
+        self.m_virtual = np.array([80, 80, 80]) # 30 GOOD FOR FILTERED
         self.k_virtual = np.array([0, 0, 0])
-        self.d_virtual = np.array([70, 70, 70])
+        self.d_virtual = np.array([70, 70, 70]) # 70 GOOD FOR FILTERED
 
         # critical damping
         # 2 * np.sqrt(k_virtual[0] * m_virtual[0]
@@ -77,19 +77,20 @@ class VirtualMassHandler:
             self.base_force_name = 'base_force'
             self.base_force_task = ti.getTask(self.base_force_name)
 
-            # kin_dyn function of base
+            # kin_dyn functions of base
             self.base_fk_pose_fun = kin_dyn.fk('base_link')
             self.base_fk_vel_fun = kin_dyn.frameVelocity('base_link', ti.model.kd_frame)
 
             # get yaw angle of base
-            self.base_initial_rot = self.base_fk_pose_fun(q=self.solution['q'][:, 0])['ee_rot']
-            self.base_initial_yaw = Rotation.from_matrix(self.base_initial_rot).as_euler("xyz")[2]
+            self.base_initial_rot = self.base_fk_pose_fun(q=self.solution['q'][:, 0])['ee_rot'] # matrix
+            self.base_initial_yaw = Rotation.from_matrix(self.base_initial_rot).as_euler("xyz")[2] # yaw angle
 
             # get yaw velocity of base
-            self.base_initial_vel_yaw = self.base_fk_vel_fun(q=self.solution['q'][:, 0], qdot=self.solution['v'][:, 0])['ee_vel_angular'].full()[2]
+            self.base_initial_yaw_vel = self.base_fk_vel_fun(q=self.solution['q'][:, 0], qdot=self.solution['v'][:, 0])['ee_vel_angular'].full()[2]
 
+            # virtual mass controller initialized with x_ee-y_ee, yaw_base
             self.ee_xy_base_yaw = np.array([[self.ee_initial_pos[0, 0], self.ee_initial_pos[1, 0], self.base_initial_yaw]]).T
-            self.ee_xy_base_yaw_vel = np.array([[self.ee_initial_vel_lin[0, 0], self.ee_initial_vel_lin[1, 0], self.base_initial_vel_yaw[0]]]).T
+            self.ee_xy_base_yaw_vel = np.array([[self.ee_initial_vel_lin[0, 0], self.ee_initial_vel_lin[1, 0], self.base_initial_yaw_vel[0]]]).T
 
             # set initial pose
             self.virtual_mass_controller.setPositionReference(self.ee_xy_base_yaw)
@@ -182,7 +183,7 @@ class VirtualMassHandler:
 
     def __init_subscribers(self):
         print('Subscribing to force estimation topic...')
-        rospy.Subscriber('/force_estimation/local_filtered', WrenchStamped, self.__wrench_callback)  # /cartesian/force_estimation/ee_E
+        rospy.Subscriber('/force_estimation/local', WrenchStamped, self.__wrench_callback)  # /cartesian/force_estimation/ee_E
         print("done.")
 
     def __init_virtual_mass_controller(self):
@@ -208,6 +209,7 @@ class VirtualMassHandler:
         ee_pos = ee_pose['ee_pos'][:self.sys_dim].full()
         ee_vel_lin = ee_vel['ee_vel_linear'][:self.sys_dim]
 
+        # controller works in world frame
         if self.input_mode == 'sensor' and wrench_local_frame:
             # rotate in world from local ee
             ee_rot = ee_pose['ee_rot']
@@ -215,7 +217,6 @@ class VirtualMassHandler:
         else:
             # force in world coordinates from joystick
             force_sensed_rot = force_sensed
-
 
         # ignore z if follow me is on
         if self.operation_mode == OperationMode.FOLLOW_ME:
@@ -229,11 +230,9 @@ class VirtualMassHandler:
             # uses world coordinates
             self.virtual_mass_controller.update(self.ee_integrated[:, 0], force_sensed_rot[:self.sys_dim])
         else:
+
             # with real state
-
             if self.__base_yaw_control_flag:
-
-
 
                 # get current yaw angle of the base
                 base_pose = self.base_fk_pose_fun(q=q_current)
@@ -243,9 +242,8 @@ class VirtualMassHandler:
                 base_yaw = Rotation.from_matrix(base_pose['ee_rot']).as_euler("xyz")[2]
                 base_yaw_vel = base_vel['ee_vel_angular'].full()[2]
 
-
-                force_sensed_rot[2] = np.cross(np.array(base_pose['ee_rot']) @ np.array([[1, 0, 0]]).T, force_sensed_rot.reshape(3, 1), axis=0)[2]
-
+                # cross product between force sensed (in world) and vector rotated as the base_link
+                force_sensed_rot[2] = np.cross(np.array(base_pose['ee_rot']) @ np.array([[1, 0, 0]]).T, force_sensed_rot.reshape((3, 1)), axis=0)[2]
 
                 # using xy of ee and yaw of base
                 ee_x_base_yaw = np.zeros([3, 1])
@@ -293,7 +291,7 @@ class VirtualMassHandler:
             self.ee_task.setWeight(1.0)
 
             if self.__base_yaw_control_flag:
-                self.base_force_task.setWeight(1.0)
+                self.base_force_task.setWeight(0.5)
 
             # only for OMNISTEERING
             self.posture_cart_task.setWeight(0.)

@@ -45,8 +45,8 @@ costs:
 #    - &w_e_xy_f 1.
 #    - &w_e_z_f 1.
 #    - &w_e_ci 1.
-    - &w_base_xy 1.
-    - &w_postural_cart 0.01
+    # - &w_base_xy 1.
+    # - &w_postural_cart 0.01
     - &w_postural_arm 0.1
     - &wheel_radius 0.16
     - &w_postural_base 0. # starting with zero weight for base task
@@ -86,14 +86,14 @@ base_force:
 #  nodes: ${range(5, N)}
 #  weight: *w_e_ci
 
-final_base_xy:
-  type: Cartesian
-  distal_link: base_link
-  indices: [0, 1]
-#  nodes: ${range(5, N)}
-  nodes: all
-  cartesian_type: velocity
-  weight: *w_base_xy
+# final_base_xy:
+#   type: Cartesian
+#   distal_link: base_link
+#   indices: [0, 1]
+# #  nodes: ${range(5, N)}
+#   nodes: all
+#   cartesian_type: velocity
+#   weight: *w_base_xy
 
 posture_base:
   type: Cartesian
@@ -128,12 +128,12 @@ rolling_contact_4:
   nodes: all
 
 # ==================================
-posture_cart:
-  type: Postural
-  weight: *w_postural_cart
-  indices: [0, 2, 4, 6] # wheels at the beginning of q
-#  indices: [6, 8, 10, 12]
-  nodes: all
+# posture_cart:
+#   type: Postural
+#   weight: *w_postural_cart
+#   indices: [0, 2, 4, 6] # wheels at the beginning of q
+# #  indices: [6, 8, 10, 12]
+#   nodes: all
 
 posture_arm:
   type: Postural
