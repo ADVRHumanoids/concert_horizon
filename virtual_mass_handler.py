@@ -291,7 +291,7 @@ class VirtualMassHandler:
             self.ee_task.setWeight(1.0)
 
             if self.__base_yaw_control_flag:
-                self.base_force_task.setWeight(0.5)
+                self.base_force_task.setWeight(0.1)
 
             # only for OMNISTEERING
             self.posture_cart_task.setWeight(0.)
