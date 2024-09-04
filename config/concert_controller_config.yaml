@@ -16,6 +16,7 @@ control_mode:
     J4_E: 3 # 7 pos + vel + effort # 3 pos + vel #1 pos
     J5_E: 3 # 7 pos + vel + effort # 3 pos + vel #1 pos
     J6_E: 3 # 7 pos + vel + effort # 3 pos + vel #1 pos
+    J7_E: 3 # 7 pos + vel + effort # 3 pos + vel #1 pos
 
 #    'J1_B': *high_stiff
 #    'J1_C': *high_stiff
