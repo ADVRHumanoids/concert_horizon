@@ -171,8 +171,8 @@ class ObstacleGeneratorWrapper:
                     # update obatacle origin with the sensed one. Needs to be transformed into base_link frame
                     obs_origin_sensed = base_pos + base_rot @ obs_vec[map_name][obs_i_num].getOrigin()
 
-                self.obs_weight_par_list[map_name][obs_i_num].assign(map_params.weight_cost_obs)
-                self.obs_origin_par_list[map_name][obs_i_num].assign(obs_origin_sensed[:2])
+                    self.obs_weight_par_list[map_name][obs_i_num].assign(map_params.weight_cost_obs)
+                    self.obs_origin_par_list[map_name][obs_i_num].assign(obs_origin_sensed[:2])
 
         time_obstacle_assign = time.time() - tic_assign
         print("time to assign values to obstacles: ", time_obstacle_assign)
