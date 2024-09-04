@@ -49,7 +49,7 @@ class ObstacleGeneratorWrapper:
                                                                        occupancy_map_width=6.0,
                                                                        occupancy_map_height=6.0,
                                                                        occupancy_map_resolution=0.01,
-                                                                       weight_cost_obs=0.0005)  # 0.001 # 0.0025
+                                                                       weight_cost_obs=0.0008)  # 0.001 # 0.0025
 
         self.map_parameters["sonar_map"] = ObstacleMapParameters(max_obs_num=10,
                                                                   obstacle_radius=0.05,
