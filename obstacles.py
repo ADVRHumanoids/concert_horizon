@@ -41,28 +41,28 @@ class ObstacleGeneratorWrapper:
 
         self.f_obs_grid = 0  # function of the inputs
 
-        self.map_parameters["navigation_map"] = ObstacleMapParameters(max_obs_num=50,
-                                                                       obstacle_radius=0.15,
+        self.map_parameters["costmap_node/costmap/costmap"] = ObstacleMapParameters(max_obs_num=50,
+                                                                       obstacle_radius=0.25,
                                                                        angle_threshold=0.2,
                                                                        min_blind_angle=-np.pi / 6,
                                                                        max_blind_angle=np.pi / 6,
                                                                        occupancy_map_width=6.0,
                                                                        occupancy_map_height=6.0,
                                                                        occupancy_map_resolution=0.01,
-                                                                       weight_cost_obs=0.0008)  # 0.001 # 0.0025
+                                                                       weight_cost_obs=0.001)  # 0.001 # 0.0025
 
-        self.map_parameters["sonar_map"] = ObstacleMapParameters(max_obs_num=10,
+        self.map_parameters["sonar_map"] = ObstacleMapParameters(max_obs_num=20,
                                                                   obstacle_radius=0.05,
-                                                                  angle_threshold=0.2,
+                                                                  angle_threshold=0.09,
                                                                   min_blind_angle=-np.pi / 6,
                                                                   max_blind_angle=np.pi / 6,
                                                                   occupancy_map_width=6.0,
                                                                   occupancy_map_height=6.0,
                                                                   occupancy_map_resolution=0.01,
-                                                                  weight_cost_obs=0.0005)  # 0.001 # 0.0025
+                                                                  weight_cost_obs=0.001)  # 0.001 # 0.0025
 
-        self.obs_origin_par_list = dict()  # dict of origin parameters for each obstacle
-        self.obs_weight_par_list = dict()  # dict of weight parameters for each obstacle
+        self.obs_origin_par_dict = dict()  # dict of origin parameters for each obstacle
+        self.obs_weight_par_dict = dict()  # dict of weight parameters for each obstacle
 
         # self.time_obstacles_list = list()
 
@@ -94,16 +94,16 @@ class ObstacleGeneratorWrapper:
 
         for map_name, map_param in self.map_parameters.items():
 
-            self.obs_origin_par_list[map_name] = list()
-            self.obs_weight_par_list[map_name] = list()
+            self.obs_origin_par_dict[map_name] = list()
+            self.obs_weight_par_dict[map_name] = list()
 
             for obs_num in range(map_param.max_obs_num):
                 # add to cost function all the casadi obstacles, parametrized with ORIGIN and WEIGHT
                 obs_origin_par = self.prb.createParameter(f'obs_origin_{map_name}_{obs_num}', 2)  # shouldn't be this single?
-                self.obs_origin_par_list[map_name].append(obs_origin_par)
+                self.obs_origin_par_dict[map_name].append(obs_origin_par)
 
                 obs_weight_par = self.prb.createParameter(f'obs_weight_{map_name}_{obs_num}', 1)
-                self.obs_weight_par_list[map_name].append(obs_weight_par)
+                self.obs_weight_par_dict[map_name].append(obs_weight_par)
 
                 obs_fun = CasadiObstacle().simpleFormulation()(grid_origin, obs_origin_par, radius_robot, map_param.obstacle_radius)
                 self.f_obs_grid += obs_weight_par * utils.utils.barrier(obs_fun)
@@ -155,10 +155,10 @@ class ObstacleGeneratorWrapper:
 
         tic_assign = time.time()
 
-        # reset all obstacle params
-        for _, item in self.obs_weight_par_list.items():
-            for elem in item:
-                elem.assign(0.)
+        # reset all obstacle params for all map
+        for _, obs_weight_list in self.obs_weight_par_dict.items():
+            for obs_weight in obs_weight_list:
+                obs_weight.assign(0.)
 
         base_pose = self.base_fk(q=solution['q'][:, 0])
         base_pos = base_pose['ee_pos']
@@ -171,8 +171,8 @@ class ObstacleGeneratorWrapper:
                     # update obatacle origin with the sensed one. Needs to be transformed into base_link frame
                     obs_origin_sensed = base_pos + base_rot @ obs_vec[map_name][obs_i_num].getOrigin()
 
-                    self.obs_weight_par_list[map_name][obs_i_num].assign(map_params.weight_cost_obs)
-                    self.obs_origin_par_list[map_name][obs_i_num].assign(obs_origin_sensed[:2])
+                    self.obs_weight_par_dict[map_name][obs_i_num].assign(map_params.weight_cost_obs)
+                    self.obs_origin_par_dict[map_name][obs_i_num].assign(obs_origin_sensed[:2])
 
         time_obstacle_assign = time.time() - tic_assign
         print("time to assign values to obstacles: ", time_obstacle_assign)
