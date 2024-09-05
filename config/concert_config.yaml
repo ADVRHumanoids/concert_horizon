@@ -38,7 +38,7 @@ costs:
 
 
 .define:
-    - &w_vel 0.01
+    - &w_vel 0.025
     - &w_acc 1e-2
     - &w_e_f 0. # starting with zero weight for ee task
     - &w_e_fb 0.
@@ -138,7 +138,7 @@ rolling_contact_4:
 posture_arm:
   type: Postural
   weight: *w_postural_arm
-  indices: [8, 9, 10, 11, 12, 13, 14] # wheels at the beginning of q
+  indices: [8, 9, 10, 11, 12, 13] # wheels at the beginning of q
 #  indices: [0, 1, 2, 3, 4, 5]
   nodes: all
 
