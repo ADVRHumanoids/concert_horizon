@@ -35,8 +35,9 @@ class ObstacleGeneratorWrapper:
         self.obs_gen = dict()
         self.map_parameters = dict()
 
-        self.radius_sphere_robot_x = 1.
-        self.radius_sphere_robot_y = 0.8
+        # robot is approximated as a sphere
+        self.radius_sphere_robot = 1. 
+        # self.radius_sphere_robot_y = 0.8
         self.radius_sphere_robot_z = 0.01
 
         self.f_obs_grid = 0  # function of the inputs
@@ -90,7 +91,7 @@ class ObstacleGeneratorWrapper:
 
 
         grid_origin = self.kin_dyn.fk('base_link')(q=self.model.q)['ee_pos'][:2]
-        radius_robot = np.array([self.radius_sphere_robot_x, self.radius_sphere_robot_y])
+        # radius_robot = np.array([self.radius_sphere_robot_x, self.radius_sphere_robot_y])
 
         for map_name, map_param in self.map_parameters.items():
 
@@ -105,7 +106,7 @@ class ObstacleGeneratorWrapper:
                 obs_weight_par = self.prb.createParameter(f'obs_weight_{map_name}_{obs_num}', 1)
                 self.obs_weight_par_dict[map_name].append(obs_weight_par)
 
-                obs_fun = CasadiObstacle().simpleFormulation()(grid_origin, obs_origin_par, radius_robot, map_param.obstacle_radius)
+                obs_fun = CasadiObstacle().simpleFormulation()(grid_origin, obs_origin_par, self.radius_sphere_robot, map_param.obstacle_radius)
                 self.f_obs_grid += obs_weight_par * utils.utils.barrier(obs_fun)
 
         self.prb.createResidual('obstacle_grid', self.f_obs_grid)
@@ -127,8 +128,8 @@ class ObstacleGeneratorWrapper:
         self.robot_marker.pose.orientation.y = 0.0
         self.robot_marker.pose.orientation.z = 0.0
         self.robot_marker.pose.orientation.w = 1.0
-        self.robot_marker.scale.x = 2 * self.radius_sphere_robot_x  # diameter
-        self.robot_marker.scale.y = 2 * self.radius_sphere_robot_y  # diameter
+        self.robot_marker.scale.x = 2 * self.radius_sphere_robot  # diameter
+        self.robot_marker.scale.y = 2 * self.radius_sphere_robot  # diameter
         self.robot_marker.scale.z = 2 * self.radius_sphere_robot_z  # diameter
         self.robot_marker.color.a = 0.2
         self.robot_marker.color.r = 0.5
