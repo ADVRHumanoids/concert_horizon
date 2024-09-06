@@ -36,21 +36,21 @@ class ObstacleGeneratorWrapper:
         self.map_parameters = dict()
 
         # robot is approximated as a sphere
-        self.radius_sphere_robot = 1. 
+        self.radius_sphere_robot = .7 
         # self.radius_sphere_robot_y = 0.8
         self.radius_sphere_robot_z = 0.01
 
         self.f_obs_grid = 0  # function of the inputs
 
         self.map_parameters["costmap_node/costmap/costmap"] = ObstacleMapParameters(max_obs_num=50,
-                                                                       obstacle_radius=0.25,
+                                                                       obstacle_radius=0.1,
                                                                        angle_threshold=0.2,
                                                                        min_blind_angle=-np.pi / 6,
                                                                        max_blind_angle=np.pi / 6,
                                                                        occupancy_map_width=6.0,
                                                                        occupancy_map_height=6.0,
                                                                        occupancy_map_resolution=0.01,
-                                                                       weight_cost_obs=0.001)  # 0.001 # 0.0025
+                                                                       weight_cost_obs=0.05)  # 0.001 # 0.0025
 
         self.map_parameters["sonar_map"] = ObstacleMapParameters(max_obs_num=20,
                                                                   obstacle_radius=0.05,
@@ -60,10 +60,12 @@ class ObstacleGeneratorWrapper:
                                                                   occupancy_map_width=6.0,
                                                                   occupancy_map_height=6.0,
                                                                   occupancy_map_resolution=0.01,
-                                                                  weight_cost_obs=0.001)  # 0.001 # 0.0025
+                                                                  weight_cost_obs=0.01)  # 0.001 # 0.0025
 
         self.obs_origin_par_dict = dict()  # dict of origin parameters for each obstacle
         self.obs_weight_par_dict = dict()  # dict of weight parameters for each obstacle
+
+        self.obstacle_distances = dict()
 
         # self.time_obstacles_list = list()
 
@@ -76,7 +78,6 @@ class ObstacleGeneratorWrapper:
     def __init_obstacle_generators(self):
 
         for map_name, map_param in self.map_parameters.items():
-            print(map_name)
             self.obs_gen[map_name] = ObstacleGenerator(map_param.occupancy_map_width,
                                                        map_param.occupancy_map_height,
                                                        map_param.occupancy_map_resolution,
@@ -93,21 +94,27 @@ class ObstacleGeneratorWrapper:
         grid_origin = self.kin_dyn.fk('base_link')(q=self.model.q)['ee_pos'][:2]
         # radius_robot = np.array([self.radius_sphere_robot_x, self.radius_sphere_robot_y])
 
+        i_map = 0
         for map_name, map_param in self.map_parameters.items():
 
+            
+            self.obstacle_distances[map_name] = list()
             self.obs_origin_par_dict[map_name] = list()
             self.obs_weight_par_dict[map_name] = list()
 
             for obs_num in range(map_param.max_obs_num):
                 # add to cost function all the casadi obstacles, parametrized with ORIGIN and WEIGHT
-                obs_origin_par = self.prb.createParameter(f'obs_origin_{map_name}_{obs_num}', 2)  # shouldn't be this single?
+                obs_origin_par = self.prb.createParameter(f'obs_origin_map_{i_map}_{obs_num}', 2)  # shouldn't be this single?
                 self.obs_origin_par_dict[map_name].append(obs_origin_par)
 
-                obs_weight_par = self.prb.createParameter(f'obs_weight_{map_name}_{obs_num}', 1)
+                obs_weight_par = self.prb.createParameter(f'obs_weight_map_{i_map}_{obs_num}', 1)
                 self.obs_weight_par_dict[map_name].append(obs_weight_par)
 
                 obs_fun = CasadiObstacle().simpleFormulation()(grid_origin, obs_origin_par, self.radius_sphere_robot, map_param.obstacle_radius)
                 self.f_obs_grid += obs_weight_par * utils.utils.barrier(obs_fun)
+                self.obstacle_distances[map_name].append(obs_fun)
+            
+            i_map+= 1
 
         self.prb.createResidual('obstacle_grid', self.f_obs_grid)
 
@@ -183,3 +190,9 @@ class ObstacleGeneratorWrapper:
         time_obstacles = time.time() - tic_obstacle
         print("time to handle obstacles: ", time_obstacles)
         # self.time_obstacles_list.append(time_obstacles)
+
+    def getObstacleDistances(self):
+        return self.obstacle_distances
+
+    def getObstacleWeightParameter(self):
+        return self.obs_weight_par_dict

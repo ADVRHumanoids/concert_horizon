@@ -252,6 +252,19 @@ while not rospy.is_shutdown():
 
     tic = time.time()
     ti.rti()
+
+    # if obstacle_avoidance:
+
+    #     obstacle_distances = ogw.getObstacleDistances()
+
+    #     obs_dist = list()
+    #     for layer_name, obstacles in obstacle_distances.items():
+    #         for obs_i in range(len(obstacles)):
+    #             if ogw.getObstacleWeightParameter()[layer_name][obs_i].getValues()[0, 0] > 0:
+    #                 obs_dist.append(prb.evalExpr(obstacles[obs_i], solution)[:, 0])
+
+    #         print("min distance", np.min(obs_dist))
+                    
     time_elapsed_solving = time.time() - tic
     time_elapsed_solving_list.append(time_elapsed_solving)
 
