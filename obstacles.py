@@ -51,7 +51,7 @@ class ObstacleGeneratorWrapper:
                                                                                     occupancy_map_width=6.0,
                                                                                     occupancy_map_height=6.0,
                                                                                     occupancy_map_resolution=0.01,
-                                                                                    weight_cost_obs=0.05)  # 0.001 # 0.0025
+                                                                                    weight_cost_obs=0.02)  # 0.001 # 0.0025
 
         self.map_parameters["sonar_map"] = ObstacleMapParameters(max_obs_num=20,
                                                                  obstacle_radius=0.05,
@@ -61,7 +61,7 @@ class ObstacleGeneratorWrapper:
                                                                  occupancy_map_width=6.0,
                                                                  occupancy_map_height=6.0,
                                                                  occupancy_map_resolution=0.01,
-                                                                 weight_cost_obs=0.05)  # 0.001 # 0.0025
+                                                                 weight_cost_obs=0.01)  # 0.001 # 0.0025
 
         self.obs_origin_par_dict = dict()  # dict of origin parameters for each obstacle
         self.obs_weight_par_dict = dict()  # dict of weight parameters for each obstacle
