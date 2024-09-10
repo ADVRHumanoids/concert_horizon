@@ -38,7 +38,7 @@ costs:
 
 
 .define:
-    - &w_vel 0.025
+    - &w_vel 0.4 #0.025
     - &w_acc 1e-2
     - &w_e_f 0. # starting with zero weight for ee task
     - &w_e_fb 0.
