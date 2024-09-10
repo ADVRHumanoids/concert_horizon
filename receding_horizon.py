@@ -196,6 +196,23 @@ if obstacle_avoidance:
 
     ogw = ObstacleGeneratorWrapper(prb, model, kin_dyn)
 
+    # obstacle_distances = ogw.getObstacleDistances()
+
+
+    # obstacle_distance_function = dict()
+    # for layer_name, spheres_robot_dict in obstacle_distances.items():
+    #     obstacle_distance_function[layer_name] = dict()
+    #
+    #     for sphere_name, obstacles in spheres_robot_dict.items():
+    #
+    #         obstacle_distance_function[layer_name][sphere_name] = list()
+    #
+    #         for obs_i in range(len(obstacles)):
+    #
+    #             function_name = f"f_{layer_name[:4].replace('/', '')}_{sphere_name}_{obs_i}"
+    #             obstacle_distance_function[layer_name][sphere_name].append(prb.createExpr(obstacles[obs_i], function_name))
+
+
 # finalize taskInterface and solve bootstrap problem
 ti.finalize()
 
@@ -229,6 +246,7 @@ mh = ModeHandler(vmc)
 
 iteration = 0
 
+
 base_fk = kin_dyn.fk('base_link')
 while not rospy.is_shutdown():
 
@@ -254,16 +272,19 @@ while not rospy.is_shutdown():
     ti.rti()
 
     # if obstacle_avoidance:
-
+    #
     #     obstacle_distances = ogw.getObstacleDistances()
-
+    #
     #     obs_dist = list()
-    #     for layer_name, obstacles in obstacle_distances.items():
-    #         for obs_i in range(len(obstacles)):
-    #             if ogw.getObstacleWeightParameter()[layer_name][obs_i].getValues()[0, 0] > 0:
-    #                 obs_dist.append(prb.evalExpr(obstacles[obs_i], solution)[:, 0])
-
-    #         print("min distance", np.min(obs_dist))
+    #     for layer_name, obstacles_from_spheres_dict in obstacle_distances.items():
+    #         for sphere_name, obstacles in obstacles_from_spheres_dict.items():
+    #             for obs_i in range(len(obstacles)):
+    #                 if ogw.getObstacleWeightParameter()[layer_name][obs_i].getValues()[0, 0] > 0:
+    #                     obs_dist.append(prb.evalExpr(obstacle_distance_function[layer_name][sphere_name][obs_i], ti.solution)[:, 0])
+    #
+    #         if obs_dist:
+    #             print(f"layer --> {layer_name} ")
+    #             print("       min distance: ", np.min(obs_dist))
                     
     time_elapsed_solving = time.time() - tic
     time_elapsed_solving_list.append(time_elapsed_solving)
