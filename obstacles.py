@@ -7,12 +7,14 @@ import horizon.utils as utils
 from horizon_navigation.pyObstacleGenerator import ObstacleGenerator
 from horizon_navigation.pyObstacle import CasadiObstacle, SphereObstacle
 import time
-import rospkg
 from dataclasses import dataclass, field
-
+import random
 
 @dataclass
 class ObstacleMapParameters:
+    topics_name: list
+    robot_sphere_radius: np.array  # robot is approximated as a sphere
+    robot_sphere_origin: np.array  # origin of sphere approximating the robot w.r.t. the base_link
     occupancy_map_width: float
     occupancy_map_height: float
     occupancy_map_resolution: float
@@ -35,25 +37,28 @@ class ObstacleGeneratorWrapper:
         self.obstacle_generator = dict()
         self.map_parameters = dict()
 
-        # robot is approximated as a sphere
-        self.radius_spheres_robot = [.5, .5]
-                                              #     x            y
-        self.origin_spheres_robot = np.matrix([[0.3, -0.3], [0.0, 0.0]])  # origin of sphere approximating the robot w.r.t. the base_link
-        # self.radius_sphere_robot_y = 0.8
-
         self.f_obs_grid = 0  # function of the inputs
 
-        self.map_parameters["costmap_node/costmap/costmap"] = ObstacleMapParameters(max_obs_num=50,
-                                                                                    obstacle_radius=0.1,
-                                                                                    angle_threshold=0.2,
-                                                                                    min_blind_angle=-np.pi / 6,
-                                                                                    max_blind_angle=np.pi / 6,
-                                                                                    occupancy_map_width=6.0,
-                                                                                    occupancy_map_height=6.0,
-                                                                                    occupancy_map_resolution=0.01,
-                                                                                    weight_cost_obs=0.02)  # 0.001 # 0.0025
+        self.map_parameters["velodyne_map"] = ObstacleMapParameters(topics_name=["costmap_node/costmap/costmap"],
+                                                                    robot_sphere_radius=np.array([0.7, 0.7]),
+                                                                    robot_sphere_origin=np.matrix([[0.3, -0.3],
+                                                                                                   [0.0,  0.0]]),
+                                                                    max_obs_num=50,
+                                                                    obstacle_radius=0.1,
+                                                                    angle_threshold=0.2,
+                                                                    min_blind_angle=-np.pi / 6,
+                                                                    max_blind_angle=np.pi / 6,
+                                                                    occupancy_map_width=6.0,
+                                                                    occupancy_map_height=6.0,
+                                                                    occupancy_map_resolution=0.01,
+                                                                    weight_cost_obs=0.04,
+                                                                    )  # 0.001 # 0.0025
 
-        self.map_parameters["sonar_map"] = ObstacleMapParameters(max_obs_num=20,
+        self.map_parameters["sonar_map"] = ObstacleMapParameters(topics_name=["sonar_map"],
+                                                                 robot_sphere_radius=np.array([.5, .5]),
+                                                                 robot_sphere_origin=np.matrix([[0.3, -0.3],
+                                                                                                [0.0, 0.0]]),
+                                                                 max_obs_num=20,
                                                                  obstacle_radius=0.05,
                                                                  angle_threshold=0.09,
                                                                  min_blind_angle=-np.pi / 6,
@@ -61,7 +66,8 @@ class ObstacleGeneratorWrapper:
                                                                  occupancy_map_width=6.0,
                                                                  occupancy_map_height=6.0,
                                                                  occupancy_map_resolution=0.01,
-                                                                 weight_cost_obs=0.01)  # 0.001 # 0.0025
+                                                                 weight_cost_obs=0.05,
+                                                                 )  # 0.001 # 0.0025
 
         self.obs_origin_par_dict = dict()  # dict of origin parameters for each obstacle
         self.obs_weight_par_dict = dict()  # dict of weight parameters for each obstacle
@@ -82,23 +88,24 @@ class ObstacleGeneratorWrapper:
             self.obstacle_generator[layer_name] = ObstacleGenerator(map_param.occupancy_map_width,
                                                                     map_param.occupancy_map_height,
                                                                     map_param.occupancy_map_resolution,
-                                                                    [f"/{layer_name}"]
+                                                                    map_param.topics_name
                                                                     )
 
             self.obstacle_generator[layer_name].setMaxObstacleNum(map_param.max_obs_num)  # maximum number of obstacle allowed
             self.obstacle_generator[layer_name].setObstacleRadius(map_param.obstacle_radius)  # radius of obstacle
-            self.obstacle_generator[layer_name].setAngleThreshold(map_param.angle_threshold)  # angle resolution to remove unnecessary obstacles (the space is radially divided into sectors of given angle)
+            self.obstacle_generator[layer_name].setAngleThreshold(
+                map_param.angle_threshold)  # angle resolution to remove unnecessary obstacles (the space is radially divided into sectors of given angle)
             self.obstacle_generator[layer_name].setBlindAngle(map_param.min_blind_angle,
                                                               map_param.max_blind_angle)  # blindsight of the robot, does not consider obstacles
-
-        robot_origin = self.kin_dyn.fk('base_link')(q=self.model.q)['ee_pos'][:2]
-        self.robot_sphere_origin_absolute = robot_origin + self.origin_spheres_robot
 
         i_map = 0
         for layer_name, map_param in self.map_parameters.items():
 
+            robot_origin = self.kin_dyn.fk('base_link')(q=self.model.q)['ee_pos'][:2]
+            robot_sphere_origin_absolute = robot_origin + map_param.robot_sphere_origin
+
             # distances from obstacles in each layer are computed from one or more sphere (approximation of the robot)
-            self.obstacle_distances[layer_name] = {f"sphere_{sphere_i}": [] for sphere_i in range(len(self.radius_spheres_robot))}
+            self.obstacle_distances[layer_name] = {f"sphere_{sphere_i}": [] for sphere_i in range(len(map_param.robot_sphere_radius))}
             self.obs_origin_par_dict[layer_name] = list()
             self.obs_weight_par_dict[layer_name] = list()
 
@@ -110,17 +117,12 @@ class ObstacleGeneratorWrapper:
                 obs_weight_par = self.prb.createParameter(f'obs_weight_map_{i_map}_{obs_num}', 1)
                 self.obs_weight_par_dict[layer_name].append(obs_weight_par)
 
-                # obs_fun = CasadiObstacle().simpleFormulation()(robot_sphere_origin, obs_origin_par, self.radius_sphere_robot, map_param.obstacle_radius)
-                # self.f_obs_grid += obs_weight_par * utils.utils.barrier(obs_fun)
-                # self.obstacle_distances[map_name].append(obs_fun)
-
                 # dictionary of "map layers" with obstacles
                 # for each obstacle in a map, distances from all the robot spheres approximation
-                for sphere_i in range(len(self.radius_spheres_robot)):
-
-                    obs_fun = CasadiObstacle().simpleFormulation()(self.robot_sphere_origin_absolute[:, sphere_i],
+                for sphere_i in range(len(map_param.robot_sphere_radius)):
+                    obs_fun = CasadiObstacle().simpleFormulation()(robot_sphere_origin_absolute[:, sphere_i],
                                                                    obs_origin_par,
-                                                                   self.radius_spheres_robot[sphere_i],
+                                                                   map_param.robot_sphere_radius[sphere_i],
                                                                    map_param.obstacle_radius)
 
                     self.f_obs_grid += obs_weight_par * utils.utils.barrier(obs_fun)
@@ -132,36 +134,42 @@ class ObstacleGeneratorWrapper:
 
     def __init_markers(self):
 
-        self.robot_markers = MarkerArray()
-        for sphere_i in range(len(self.radius_spheres_robot)):
-            # publish robot sphere for obstacle avoidance
-            robot_marker = Marker()
-            robot_marker.header.frame_id = "base_link"  # Assuming the frame_id is 'base_link', change as necessary
-            robot_marker.header.stamp = rospy.Time.now()
-            robot_marker.ns = "sphere"
-            robot_marker.id = sphere_i
-            robot_marker.type = Marker.SPHERE
-            robot_marker.action = Marker.ADD
-            robot_marker.pose.position.x = self.origin_spheres_robot[0, sphere_i]  # Adjust as necessary
-            robot_marker.pose.position.y = self.origin_spheres_robot[1, sphere_i]  # Adjust as necessary
-            robot_marker.pose.position.z = 0  # Adjust as necessary
-            robot_marker.pose.orientation.x = 0.0
-            robot_marker.pose.orientation.y = 0.0
-            robot_marker.pose.orientation.z = 0.0
-            robot_marker.pose.orientation.w = 1.0
-            robot_marker.scale.x = 2 * self.radius_spheres_robot[sphere_i]  # diameter
-            robot_marker.scale.y = 2 * self.radius_spheres_robot[sphere_i]  # diameter
-            robot_marker.scale.z = 2 * 0.01  # diameter
-            robot_marker.color.a = 0.2
-            robot_marker.color.r = 0.5
-            robot_marker.color.g = 0.0
-            robot_marker.color.b = 0.5
+        self.robot_markers = dict()
+        for layer_name, map_param in self.map_parameters.items():
 
-            self.robot_markers.markers.append(robot_marker)
+            self.robot_markers[layer_name] = MarkerArray()
+            layer_rgb = [random.uniform(0, 1), random.uniform(0, 1), random.uniform(0, 1)]
+
+            for sphere_i in range(len(map_param.robot_sphere_radius)):
+                # publish robot sphere for obstacle avoidance
+                robot_marker = Marker()
+                robot_marker.header.frame_id = "base_link"  # Assuming the frame_id is 'base_link', change as necessary
+                robot_marker.header.stamp = rospy.Time.now()
+                robot_marker.ns = layer_name
+                robot_marker.id = sphere_i
+                robot_marker.type = Marker.SPHERE
+                robot_marker.action = Marker.ADD
+                robot_marker.pose.position.x = map_param.robot_sphere_origin[0, sphere_i]  # Adjust as necessary
+                robot_marker.pose.position.y = map_param.robot_sphere_origin[1, sphere_i]  # Adjust as necessary
+                robot_marker.pose.position.z = 0  # Adjust as necessary
+                robot_marker.pose.orientation.x = 0.0
+                robot_marker.pose.orientation.y = 0.0
+                robot_marker.pose.orientation.z = 0.0
+                robot_marker.pose.orientation.w = 1.0
+                robot_marker.scale.x = 2 * map_param.robot_sphere_radius[sphere_i]  # diameter
+                robot_marker.scale.y = 2 * map_param.robot_sphere_radius[sphere_i]  # diameter
+                robot_marker.scale.z = 2 * 0.01  # diameter
+                robot_marker.color.a = 0.2
+                robot_marker.color.r = layer_rgb[0]
+                robot_marker.color.g = layer_rgb[1]
+                robot_marker.color.b = layer_rgb[2]
+
+                self.robot_markers[layer_name].markers.append(robot_marker)
 
     def __init_ros_publisher(self):
-
-        self.robot_pub = rospy.Publisher('robot_marker', MarkerArray, queue_size=10)
+        self.robot_pub = dict()
+        for layer_name, _ in self.map_parameters.items():
+            self.robot_pub[layer_name] = rospy.Publisher(f'{layer_name}/robot_markers', MarkerArray, queue_size=10)
 
     def run(self, solution):
 
@@ -201,7 +209,8 @@ class ObstacleGeneratorWrapper:
         time_obstacle_assign = time.time() - tic_assign
         print("time to assign values to obstacles: ", time_obstacle_assign)
 
-        self.robot_pub.publish(self.robot_markers)
+        for layer_name in self.robot_pub:
+            self.robot_pub[layer_name].publish(self.robot_markers[layer_name])
 
         time_obstacles = time.time() - tic_obstacle
         print("time to handle obstacles: ", time_obstacles)
