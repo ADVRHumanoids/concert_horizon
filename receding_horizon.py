@@ -235,7 +235,7 @@ xig = np.empty([prb.getState().getVars().shape[0], 1])
 time_elapsed_shifting_list = list()
 time_elapsed_solving_list = list()
 time_elapsed_all_list = list()
-
+time_elapsed_obstacles_list = list()
 
 vmc = VirtualMassHandler(kin_dyn, solution, ti, input_mode=virtual_mass_input_mode)
 
@@ -248,8 +248,10 @@ iteration = 0
 
 
 base_fk = kin_dyn.fk('base_link')
-while not rospy.is_shutdown():
+max_iter = 0
+while not rospy.is_shutdown(): #and max_iter < 1000:
 
+    max_iter += 1
     # tic = time.time()
     # set initial state and initial guess
     shift_num = -1
@@ -265,8 +267,10 @@ while not rospy.is_shutdown():
     vmc.run(solution)
 
     if obstacle_avoidance:
-
+        tic = time.time()
         ogw.run(solution)
+        time_elapsed_obstacles = time.time() - tic
+        time_elapsed_obstacles_list.append(time_elapsed_obstacles)
 
     tic = time.time()
     ti.rti()
@@ -352,5 +356,5 @@ while not rospy.is_shutdown():
 
 # print(f'average time elapsed shifting: {sum(time_elapsed_shifting_list) / len(time_elapsed_shifting_list)}')
 print(f'average time elapsed solving: {sum(time_elapsed_solving_list) / len(time_elapsed_solving_list)}')
-# print(f'average time obstacles: {sum(time_obstacles_list) / len(time_obstacles_list)}')
+print(f'average time obstacles: {sum(time_elapsed_obstacles_list) / len(time_elapsed_obstacles_list)}')
 print(f'average time elapsed all: {sum(time_elapsed_all_list) / len(time_elapsed_all_list)}')
