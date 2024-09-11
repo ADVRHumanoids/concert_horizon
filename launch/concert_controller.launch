@@ -12,7 +12,7 @@
     <node pkg="concert_horizon" type="receding_horizon.py" name="mpc_node" output="screen">
         <remap if="$(arg xbot)" from="/robot_description" to="/xbotcore/robot_description"/>
         <remap if="$(arg xbot)" from="/robot_description_semantic" to="/xbotcore/robot_description_semantic"/>
-        <param name="input_mode" value="joystick" /> <!-- joystick -->
+        <param name="input_mode" value="sensor" /> <!-- joystick -->
 <!--         <rosparam param="config" file="$(find horizon_navigation)/config/obstacle_generator_config.yaml" ns="concert_obstacles"/> -->
 <!--         <param name="config" textfile="$(find horizon_navigation)/config/obstacle_generator_config.yaml"/> -->
     </node>
