@@ -31,9 +31,9 @@ class VirtualMassHandler:
         # d_virtual = np.array([20, 20])
 
         # expose this outside
-        self.m_virtual = np.array([80, 80, 80]) # 30 GOOD FOR FILTERED
+        self.m_virtual = np.array([50, 50, 50]) # 80 80 80 slow but good
         self.k_virtual = np.array([0, 0, 0])
-        self.d_virtual = np.array([70, 70, 70]) # 70 GOOD FOR FILTERED
+        self.d_virtual = np.array([50, 50, 50]) # 70 70 70 slow but good
 
         # critical damping
         # 2 * np.sqrt(k_virtual[0] * m_virtual[0]
