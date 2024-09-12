@@ -42,7 +42,7 @@ class ObstacleGeneratorWrapper:
         self.f_obs_grid = 0  # function of the inputs
 
         self.map_parameters["velodyne_map"] = ObstacleMapParameters(topics_name=["costmap_node/costmap/costmap"],
-                                                                    robot_sphere_radius=np.array([0.7, 0.7]),
+                                                                    robot_sphere_radius=np.array([0.75, 0.75]),
                                                                     robot_sphere_origin=np.matrix([[0.3, -0.3],
                                                                                                    [0.0,  0.0]]),
                                                                     max_obs_num=50,
@@ -53,42 +53,27 @@ class ObstacleGeneratorWrapper:
                                                                     occupancy_map_width=6.0,
                                                                     occupancy_map_height=6.0,
                                                                     occupancy_map_resolution=0.01,
-                                                                    weight_cost_obs=0.04,
-                                                                    )  # 0.001 # 0.0025
-
-        # self.map_parameters["sonar_map"] = ObstacleMapParameters(topics_name=["sonar_map/sonars"],
-        #                                                          robot_sphere_radius=np.array([.5, .5]),
-        #                                                          robot_sphere_origin=np.matrix([[0.3, -0.3],
-        #                                                                                         [0.0, 0.0]]),
-        #                                                          max_obs_num=20,
-        #                                                          obstacle_radius=0.05,
-        #                                                          angle_threshold=0.09,
-        #                                                          min_blind_angle=-np.pi / 6,
-        #                                                          max_blind_angle=np.pi / 6,
-        #                                                          occupancy_map_width=6.0,
-        #                                                          occupancy_map_height=6.0,
-        #                                                          occupancy_map_resolution=0.01,
-        #                                                          weight_cost_obs=0.05,
-        #                                                          )  # 0.001 # 0.0025
-
-        sonar_topic_names = ["rr_lat", "rr_sag", "fr_lat", "fr_sag", "fl_lat", "fl_sag", "rl_lat", "rl_sag"]
-
-        for topic_name in sonar_topic_names:
-            self.map_parameters[topic_name] = ObstacleMapParameters(topics_name=[f"sonar_map/{topic_name}"],
-                                                                    robot_sphere_radius=np.array([.5, .5]),
-                                                                    robot_sphere_origin=np.matrix([[0.3, -0.3],
-                                                                                                   [0.0, 0.0]]),
-                                                                    max_obs_num=8,
-                                                                    obstacle_radius=0.05,
-                                                                    angle_threshold=0.09,
-                                                                    min_blind_angle=-np.pi / 6,
-                                                                    max_blind_angle=np.pi / 6,
-                                                                    occupancy_map_width=2.0,
-                                                                    occupancy_map_height=2.0,
-                                                                    occupancy_map_resolution=0.01,
                                                                     weight_cost_obs=0.05,
-                                                                    rviz_markers_topic_name="sonar_map/obstacles"
                                                                     )  # 0.001 # 0.0025
+
+        # sonar_topic_names = ["rr_lat", "rr_sag", "fr_lat", "fr_sag", "fl_lat", "fl_sag", "rl_lat", "rl_sag"]
+
+        # for topic_name in sonar_topic_names:
+        #     self.map_parameters[topic_name] = ObstacleMapParameters(topics_name=[f"sonar_map/{topic_name}"],
+        #                                                             robot_sphere_radius=np.array([.5, .5]),
+        #                                                             robot_sphere_origin=np.matrix([[0.3, -0.3],
+        #                                                                                            [0.0, 0.0]]),
+        #                                                             max_obs_num=12,
+        #                                                             obstacle_radius=0.05,
+        #                                                             angle_threshold=0.09,
+        #                                                             min_blind_angle=-np.pi / 6,
+        #                                                             max_blind_angle=np.pi / 6,
+        #                                                             occupancy_map_width=2.0,
+        #                                                             occupancy_map_height=2.0,
+        #                                                             occupancy_map_resolution=0.01,
+        #                                                             weight_cost_obs=0.05,
+        #                                                             rviz_markers_topic_name="sonar_map/obstacles"
+        #                                                             )  # 0.001 # 0.0025
 
         self.obs_origin_par_dict = dict()  # dict of origin parameters for each obstacle
         self.obs_weight_par_dict = dict()  # dict of weight parameters for each obstacle
