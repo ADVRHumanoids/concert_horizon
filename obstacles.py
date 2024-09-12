@@ -13,7 +13,7 @@ import random
 
 @dataclass
 class ObstacleMapParameters:
-    topics_name: list
+    input_topic_name: str
     robot_sphere_radius: np.array  # robot is approximated as a sphere
     robot_sphere_origin: np.array  # origin of sphere approximating the robot w.r.t. the base_link
     occupancy_map_width: float
@@ -25,7 +25,12 @@ class ObstacleMapParameters:
     min_blind_angle: float  # blindsight of the robot, does not consider obstacles
     max_blind_angle: float
     weight_cost_obs: float  # cost for each obstacle (repulsive force)
-    rviz_markers_topic_name: str = "" # name of rviz markers visualization topic    
+    rviz_markers_topic_name: str = "" # name of rviz markers visualization topic
+    robot_sphere_publisher_name: str = None  # Will be initialized in __post_init__
+    def __post_init__(self):
+        # Set greeting based on the 'name' field
+        if self.robot_sphere_publisher_name is None:
+            self.robot_sphere_publisher_name = self.input_topic_name
 
 
 class ObstacleGeneratorWrapper:
@@ -41,7 +46,7 @@ class ObstacleGeneratorWrapper:
 
         self.f_obs_grid = 0  # function of the inputs
 
-        self.map_parameters["velodyne_map"] = ObstacleMapParameters(topics_name=["costmap_node/costmap/costmap"],
+        self.map_parameters["velodyne_map"] = ObstacleMapParameters(input_topic_name="/costmap_node/costmap/costmap",
                                                                     robot_sphere_radius=np.array([0.7, 0.7]),
                                                                     robot_sphere_origin=np.matrix([[0.3, -0.3],
                                                                                                    [0.0,  0.0]]),
@@ -54,41 +59,28 @@ class ObstacleGeneratorWrapper:
                                                                     occupancy_map_height=6.0,
                                                                     occupancy_map_resolution=0.01,
                                                                     weight_cost_obs=0.04,
+                                                                    robot_sphere_publisher_name="velodyne_map_publisher"
                                                                     )  # 0.001 # 0.0025
-
-        # self.map_parameters["sonar_map"] = ObstacleMapParameters(topics_name=["sonar_map/sonars"],
-        #                                                          robot_sphere_radius=np.array([.5, .5]),
-        #                                                          robot_sphere_origin=np.matrix([[0.3, -0.3],
-        #                                                                                         [0.0, 0.0]]),
-        #                                                          max_obs_num=20,
-        #                                                          obstacle_radius=0.05,
-        #                                                          angle_threshold=0.09,
-        #                                                          min_blind_angle=-np.pi / 6,
-        #                                                          max_blind_angle=np.pi / 6,
-        #                                                          occupancy_map_width=6.0,
-        #                                                          occupancy_map_height=6.0,
-        #                                                          occupancy_map_resolution=0.01,
-        #                                                          weight_cost_obs=0.05,
-        #                                                          )  # 0.001 # 0.0025
 
         sonar_topic_names = ["rr_lat", "rr_sag", "fr_lat", "fr_sag", "fl_lat", "fl_sag", "rl_lat", "rl_sag"]
 
-        for topic_name in sonar_topic_names:
-            self.map_parameters[topic_name] = ObstacleMapParameters(topics_name=[f"sonar_map/{topic_name}"],
-                                                                    robot_sphere_radius=np.array([.5, .5]),
-                                                                    robot_sphere_origin=np.matrix([[0.3, -0.3],
-                                                                                                   [0.0, 0.0]]),
-                                                                    max_obs_num=8,
-                                                                    obstacle_radius=0.05,
-                                                                    angle_threshold=0.09,
-                                                                    min_blind_angle=-np.pi / 6,
-                                                                    max_blind_angle=np.pi / 6,
-                                                                    occupancy_map_width=2.0,
-                                                                    occupancy_map_height=2.0,
-                                                                    occupancy_map_resolution=0.01,
-                                                                    weight_cost_obs=0.05,
-                                                                    rviz_markers_topic_name="sonar_map/obstacles"
-                                                                    )  # 0.001 # 0.0025
+        # for topic_name in sonar_topic_names:
+        #     self.map_parameters[topic_name] = ObstacleMapParameters(input_topic_name=f"/sonar_map/{topic_name}",
+        #                                                             robot_sphere_radius=np.array([.5, .5]),
+        #                                                             robot_sphere_origin=np.matrix([[0.3, -0.3],
+        #                                                                                            [0.0, 0.0]]),
+        #                                                             max_obs_num=8,
+        #                                                             obstacle_radius=0.05,
+        #                                                             angle_threshold=0.09,
+        #                                                             min_blind_angle=-np.pi / 6,
+        #                                                             max_blind_angle=np.pi / 6,
+        #                                                             occupancy_map_width=2.0,
+        #                                                             occupancy_map_height=2.0,
+        #                                                             occupancy_map_resolution=0.01,
+        #                                                             weight_cost_obs=0.05,
+        #                                                             rviz_markers_topic_name="sonar_map/obstacles",
+        #                                                             robot_sphere_publisher_name="sonar_map_publisher"
+        #                                                             )  # 0.001 # 0.0025
 
         self.obs_origin_par_dict = dict()  # dict of origin parameters for each obstacle
         self.obs_weight_par_dict = dict()  # dict of weight parameters for each obstacle
@@ -107,7 +99,7 @@ class ObstacleGeneratorWrapper:
             self.obstacle_generator[layer_name] = ObstacleGenerator(map_param.occupancy_map_width,
                                                                     map_param.occupancy_map_height,
                                                                     map_param.occupancy_map_resolution,
-                                                                    map_param.topics_name,
+                                                                    map_param.input_topic_name,
                                                                     map_param.rviz_markers_topic_name
                                                                     )
 
@@ -155,9 +147,12 @@ class ObstacleGeneratorWrapper:
     def __init_markers(self):
 
         self.robot_markers = dict()
+
         for layer_name, map_param in self.map_parameters.items():
 
-            self.robot_markers[layer_name] = MarkerArray()
+            if map_param.robot_sphere_publisher_name not in self.robot_markers:
+                self.robot_markers[map_param.robot_sphere_publisher_name] = MarkerArray()
+
             layer_rgb = [random.uniform(0, 1), random.uniform(0, 1), random.uniform(0, 1)]
 
             for sphere_i in range(len(map_param.robot_sphere_radius)):
@@ -179,17 +174,18 @@ class ObstacleGeneratorWrapper:
                 robot_marker.scale.x = 2 * map_param.robot_sphere_radius[sphere_i]  # diameter
                 robot_marker.scale.y = 2 * map_param.robot_sphere_radius[sphere_i]  # diameter
                 robot_marker.scale.z = 2 * 0.01  # diameter
-                robot_marker.color.a = 0.2
+                robot_marker.color.a = 0.1
                 robot_marker.color.r = layer_rgb[0]
                 robot_marker.color.g = layer_rgb[1]
                 robot_marker.color.b = layer_rgb[2]
 
-                self.robot_markers[layer_name].markers.append(robot_marker)
+                self.robot_markers[map_param.robot_sphere_publisher_name].markers.append(robot_marker)
 
     def __init_ros_publisher(self):
         self.robot_pub = dict()
-        for layer_name, _ in self.map_parameters.items():
-            self.robot_pub[layer_name] = rospy.Publisher(f'{layer_name}/robot_markers', MarkerArray, queue_size=10)
+        for _, layer_info in self.map_parameters.items():
+            if layer_info.robot_sphere_publisher_name not in self.robot_pub:
+                self.robot_pub[layer_info.robot_sphere_publisher_name] = rospy.Publisher(f'{layer_info.robot_sphere_publisher_name}/robot_markers', MarkerArray, queue_size=10)
 
     def run(self, solution):
 
@@ -232,8 +228,8 @@ class ObstacleGeneratorWrapper:
         time_obstacle_assign = time.time() - tic_assign
         print("time to assign values to obstacles: ", time_obstacle_assign)
 
-        for layer_name in self.robot_pub:
-            self.robot_pub[layer_name].publish(self.robot_markers[layer_name])
+        for publisher_name in self.robot_pub:
+            self.robot_pub[publisher_name].publish(self.robot_markers[publisher_name])
 
         time_obstacles = time.time() - tic_obstacle
         print("time to handle obstacles: ", time_obstacles)
