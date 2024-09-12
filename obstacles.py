@@ -25,6 +25,7 @@ class ObstacleMapParameters:
     min_blind_angle: float  # blindsight of the robot, does not consider obstacles
     max_blind_angle: float
     weight_cost_obs: float  # cost for each obstacle (repulsive force)
+    rviz_markers_topic_name: str = "" # name of rviz markers visualization topic    
 
 
 class ObstacleGeneratorWrapper:
@@ -86,6 +87,7 @@ class ObstacleGeneratorWrapper:
                                                                     occupancy_map_height=2.0,
                                                                     occupancy_map_resolution=0.01,
                                                                     weight_cost_obs=0.05,
+                                                                    rviz_markers_topic_name="sonar_map/obstacles"
                                                                     )  # 0.001 # 0.0025
 
         self.obs_origin_par_dict = dict()  # dict of origin parameters for each obstacle
@@ -105,7 +107,8 @@ class ObstacleGeneratorWrapper:
             self.obstacle_generator[layer_name] = ObstacleGenerator(map_param.occupancy_map_width,
                                                                     map_param.occupancy_map_height,
                                                                     map_param.occupancy_map_resolution,
-                                                                    map_param.topics_name
+                                                                    map_param.topics_name,
+                                                                    map_param.rviz_markers_topic_name
                                                                     )
 
             self.obstacle_generator[layer_name].setMaxObstacleNum(map_param.max_obs_num)  # maximum number of obstacle allowed
