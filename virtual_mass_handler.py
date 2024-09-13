@@ -329,6 +329,9 @@ class VirtualMassHandler:
             self.operation_mode = OperationMode.HOMING
 
         elif mode == OperationMode.IDLE:
+
+            self.ee_task.setWeight(0.0)
+            
             self.operation_mode = OperationMode.IDLE
 
         else:
