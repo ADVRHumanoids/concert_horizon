@@ -10,7 +10,7 @@ from horizon_navigation.pyObstacle import CasadiObstacle, SphereObstacle
 import time
 from dataclasses import dataclass, field
 import random
-from std_msgs.msg import Float64, Int64, Float64MultiArray
+from std_msgs.msg import Float64, Int64, Float64MultiArray, MultiArrayLayout, MultiArrayDimension
 from obstacles_ros_server import ObstaclesROSServer
 import multiprocessing
 
@@ -88,9 +88,9 @@ class ObstacleGeneratorWrapper:
                                                                     robot_sphere_publisher_name="velodyne_map_publisher"
                                                                     )  # 0.001 # 0.0025
 
-        sonar_topic_names = ["rr_lat", "rr_sag", "fr_lat", "fr_sag", "fl_lat", "fl_sag", "rl_lat", "rl_sag"]
+        self.sonar_topic_names = ["rr_lat", "rr_sag", "fr_lat", "fr_sag", "fl_lat", "fl_sag", "rl_lat", "rl_sag"]
 
-        for topic_name in sonar_topic_names:
+        for topic_name in self.sonar_topic_names:
 
             ultrasound_origin = kin_dyn.fk(f'ultrasound_{topic_name}')(q=self.model.q0)['ee_pos'][:2]
             self.map_parameters[topic_name] = ObstacleMapParameters(input_topic_name=f"/sonar_map/{topic_name}",
@@ -126,6 +126,7 @@ class ObstacleGeneratorWrapper:
 
         self.reconfigurable_topics_name = [("max_obs_num", Int64), ("obstacle_radius", Float64), ("weight_cost_obs", Float64), ("robot_sphere_radius", Float64MultiArray)]
 
+        self.__init_publishers(self.sonar_topic_names)
         self.__init_subscribers(self.map_parameters.keys(), self.reconfigurable_topics_name)
 
         self.variable_change_flag = dict()
@@ -149,14 +150,38 @@ class ObstacleGeneratorWrapper:
                 self.subscribers[suffix].append(sub)
                 rospy.loginfo(f"Subscriber for {topic_name} ({param_type}) is ready.")
 
-        
+        # small tapullo for centralizing sonars
+        self.subscribers["all_sonars"] = list()
+        for param_name, param_type in params:
+            sub = rospy.Subscriber(f"all_sonars/{param_name}", param_type, self.__republisher_callback(param_name))
+            self.subscribers["all_sonars"].append(sub)
+
+
+    def __init_publishers(self, sonar_topic_names):
+        self.sonar_publishers = dict()
+        for (topic, topic_type) in self.reconfigurable_topics_name:
+            self.sonar_publishers[topic] = dict()
+            for sonar_topic in self.sonar_topic_names:
+                self.sonar_publishers[topic][sonar_topic] = rospy.Publisher(f'{sonar_topic}/{topic}', topic_type, queue_size=10)
+
+    def __republisher_callback(self, param_name):
+
+        def republish_callback(msg):
+
+            rospy.loginfo("Received message: %s", msg.data)
+
+            for publisher_name, publisher in self.sonar_publishers[param_name].items():
+
+                publisher.publish(msg)  # Publishing the same data on a different topic
+
+        return republish_callback
+    #
     def __create_callback(self, suffix_name, topic_name):
 
         def update_variables_callback(msg):
             """
             Callback function to update the internal variables based on the received message.
             """
-
 
             current_value = msg.data
             last_value = self.map_parameters[suffix_name].getParam(topic_name)
