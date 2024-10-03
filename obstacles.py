@@ -72,7 +72,7 @@ class ObstacleGeneratorWrapper:
 
 
         self.map_parameters["velodyne_map"] = ObstacleMapParameters(input_topic_name="/costmap_node/costmap/costmap",
-                                                                    robot_sphere_radius=np.array([0.75, 0.75]),
+                                                                    robot_sphere_radius=np.array([0.6, 0.6]),
                                                                     robot_sphere_origin=np.matrix([[0.3, -0.3],
                                                                                                    [0.0,  0.0]]),
                                                                     max_obs_num=50,
@@ -103,7 +103,7 @@ class ObstacleGeneratorWrapper:
                                                                     occupancy_map_width=2.0,
                                                                     occupancy_map_height=2.0,
                                                                     occupancy_map_resolution=0.01,
-                                                                    weight_cost_obs=0.04,
+                                                                    weight_cost_obs=0.05,
                                                                     rviz_markers_topic_name="sonar_map/obstacles",
                                                                     robot_sphere_publisher_name="sonar_map_publisher"
                                                                     )  # 0.001 # 0.0025
