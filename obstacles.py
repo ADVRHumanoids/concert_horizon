@@ -11,7 +11,6 @@ import time
 from dataclasses import dataclass, field
 import random
 from std_msgs.msg import Float64, Int64, Float64MultiArray, MultiArrayLayout, MultiArrayDimension
-from obstacles_ros_server import ObstaclesROSServer
 import multiprocessing
 
 
