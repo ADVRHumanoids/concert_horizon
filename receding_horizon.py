@@ -196,21 +196,21 @@ if obstacle_avoidance:
 
     ogw = ObstacleGeneratorWrapper(prb, model, kin_dyn)
 
-    # obstacle_distances = ogw.getObstacleDistances()
+    obstacle_distances = ogw.getObstacleDistances()
 
 
-    # obstacle_distance_function = dict()
-    # for layer_name, spheres_robot_dict in obstacle_distances.items():
-    #     obstacle_distance_function[layer_name] = dict()
+    obstacle_distance_function = dict()
+    for layer_name, spheres_robot_dict in obstacle_distances.items():
+        obstacle_distance_function[layer_name] = dict()
     
-    #     for sphere_name, obstacles in spheres_robot_dict.items():
+        for sphere_name, obstacles in spheres_robot_dict.items():
     
-    #         obstacle_distance_function[layer_name][sphere_name] = list()
+            obstacle_distance_function[layer_name][sphere_name] = list()
     
-    #         for obs_i in range(len(obstacles)):
+            for obs_i in range(len(obstacles)):
     
-    #             function_name = f"f_{layer_name[:4].replace('/', '')}_{sphere_name}_{obs_i}"
-    #             obstacle_distance_function[layer_name][sphere_name].append(prb.createExpr(obstacles[obs_i], function_name))
+                function_name = f"f_{layer_name[:4].replace('/', '')}_{sphere_name}_{obs_i}"
+                obstacle_distance_function[layer_name][sphere_name].append(prb.createExpr(obstacles[obs_i], function_name))
 
 
 # finalize taskInterface and solve bootstrap problem
@@ -251,6 +251,7 @@ base_fk = kin_dyn.fk('base_link')
 max_iter = 0
 while not rospy.is_shutdown(): #and max_iter < 1000:
 
+    tic_all = time.time()
     max_iter += 1
     # tic = time.time()
     # set initial state and initial guess
@@ -274,18 +275,23 @@ while not rospy.is_shutdown(): #and max_iter < 1000:
 
     tic = time.time()
     ti.rti()
+    #
+    # if obstacle_avoidance:
+    #     for layer_name in ogw.getLayers():
+    #         print(layer_name)
+    #         print(ti.solver_rti.getCostsValues()[f'obstacle_grid_{layer_name}_cost'])
 
     # if obstacle_avoidance:
-    
+    #
     #     obstacle_distances = ogw.getObstacleDistances()
-    
+    #
     #     obs_dist = list()
     #     for layer_name, obstacles_from_spheres_dict in obstacle_distances.items():
     #         for sphere_name, obstacles in obstacles_from_spheres_dict.items():
     #             for obs_i in range(len(obstacles)):
     #                 if ogw.getObstacleWeightParameter()[layer_name][obs_i].getValues()[0, 0] > 0:
     #                     obs_dist.append(prb.evalExpr(obstacle_distance_function[layer_name][sphere_name][obs_i], ti.solution)[:, 0])
-    
+    #
     #         if obs_dist:
     #             print(f"layer --> {layer_name} ")
     #             print("       min distance: ", np.min(obs_dist))
@@ -351,6 +357,8 @@ while not rospy.is_shutdown(): #and max_iter < 1000:
 
     iteration = iteration + 1
     rate.sleep()
+
+    print("time elapsed all: ", time.time() - tic_all)
 
     # print(f"{colorama.Style.RED}MPC loop elapsed time: {time.time() - tic}{colorama.Style.RESET}")
 
