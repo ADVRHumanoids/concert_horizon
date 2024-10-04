@@ -52,6 +52,8 @@ class VirtualMassHandler:
         ## posture task
         self.posture_arm_name = 'posture_arm'
         self.posture_arm_task = ti.getTask(self.posture_arm_name)
+        self.initial_w_posture_arm = self.posture_arm_task.getWeight()
+
 
         ## required for omnisteering
         # floating base task
@@ -331,6 +333,12 @@ class VirtualMassHandler:
         elif mode == OperationMode.IDLE:
 
             self.ee_task.setWeight(0.0)
+
+            if self.__base_yaw_control_flag:
+                self.base_force_task.setWeight(0.0)
+
+            self.posture_arm_task.setRef(self.solution['q'][15:22, :])  # saving the current position of the arm
+            self.posture_arm_task.setWeight(self.initial_w_posture_arm)
             
             self.operation_mode = OperationMode.IDLE
 
