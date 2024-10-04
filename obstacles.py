@@ -11,7 +11,7 @@ import time
 from dataclasses import dataclass, field
 import random
 from std_msgs.msg import Float64, Int64, Float64MultiArray, MultiArrayLayout, MultiArrayDimension
-import multiprocessing
+import casadi as cs
 
 
 @dataclass
@@ -83,7 +83,7 @@ class ObstacleGeneratorWrapper:
                                                                     occupancy_map_width=6.0,
                                                                     occupancy_map_height=6.0,
                                                                     occupancy_map_resolution=0.01,
-                                                                    weight_cost_obs=0.05,
+                                                                    weight_cost_obs=0.1,
                                                                     robot_sphere_publisher_name="velodyne_map_publisher"
                                                                     )  # 0.001 # 0.0025
 
@@ -103,7 +103,7 @@ class ObstacleGeneratorWrapper:
                                                                     occupancy_map_width=2.0,
                                                                     occupancy_map_height=2.0,
                                                                     occupancy_map_resolution=0.01,
-                                                                    weight_cost_obs=0.05,
+                                                                    weight_cost_obs=0.1,
                                                                     rviz_markers_topic_name="sonar_map/obstacles",
                                                                     robot_sphere_publisher_name="sonar_map_publisher"
                                                                     )  # 0.001 # 0.0025
@@ -113,7 +113,7 @@ class ObstacleGeneratorWrapper:
         self.obs_radius_par_dict = dict()  # dict of radius parameters for each obstacle
         self.robot_sphere_par_dict = dict() # dict of radius parameters for each sphere approximation of robot
 
-        # self.obstacle_distances = dict()
+        self.obstacle_distances = dict()
 
         self.__init_obstacle_generators()
         self.__init_markers()
@@ -225,13 +225,17 @@ class ObstacleGeneratorWrapper:
                                                               map_param.max_blind_angle)  # blindsight of the robot, does not consider obstacles
 
         i_map = 0
+        # self.f_obs_grid = cs.SX.zeros(0, 1)
+        self.f_obs_grid = dict()
         for layer_name, map_param in self.map_parameters.items():
+
+            self.f_obs_grid[layer_name] = cs.SX.zeros(0, 1)
 
             robot_origin = self.kin_dyn.fk('base_link')(q=self.model.q)['ee_pos'][:2]
             robot_sphere_origin_absolute = robot_origin + map_param.robot_sphere_origin
 
             # distances from obstacles in each layer are computed from one or more sphere (approximation of the robot)
-            # self.obstacle_distances[layer_name] = {f"sphere_{sphere_i}": [] for sphere_i in range(len(map_param.robot_sphere_radius))}
+            self.obstacle_distances[layer_name] = {f"sphere_{sphere_i}": [] for sphere_i in range(len(map_param.robot_sphere_radius))}
 
             robot_sphere_radius_par = self.prb.createParameter(f'robot_sphere_radius_map_{i_map}', len(map_param.robot_sphere_radius))
             self.robot_sphere_par_dict[layer_name] = robot_sphere_radius_par
@@ -241,6 +245,7 @@ class ObstacleGeneratorWrapper:
             self.obs_radius_par_dict[layer_name] = list()
 
             for obs_num in range(map_param.max_obs_num):
+
                 # add to cost function all the casadi obstacles, parametrized with ORIGIN and WEIGHT
                 obs_origin_par = self.prb.createParameter(f'obs_origin_map_{i_map}_{obs_num}', 2)  # shouldn't be this single?
                 self.obs_origin_par_dict[layer_name].append(obs_origin_par)
@@ -261,12 +266,12 @@ class ObstacleGeneratorWrapper:
                                                                    self.robot_sphere_par_dict[layer_name][sphere_i],
                                                                    obs_radius_par)
 
-                    self.f_obs_grid += obs_weight_par * utils.utils.barrier(obs_fun)
-                    # self.obstacle_distances[layer_name][f"sphere_{sphere_i}"].append(obs_fun)
+                    # self.f_obs_grid += obs_weight_par * utils.utils.barrier(obs_fun)
+                    self.f_obs_grid[layer_name] = cs.vertcat(self.f_obs_grid[layer_name], obs_weight_par * utils.utils.barrier(obs_fun))
+                    self.obstacle_distances[layer_name][f"sphere_{sphere_i}"].append(obs_fun)
 
             i_map += 1
-
-        self.prb.createResidual('obstacle_grid', self.f_obs_grid)
+            self.prb.createResidual(f'obstacle_grid_{layer_name}', self.f_obs_grid[layer_name])
 
     def __init_markers(self):
 
@@ -318,6 +323,10 @@ class ObstacleGeneratorWrapper:
         for _, layer_info in self.map_parameters.items():
             if layer_info.robot_sphere_publisher_name not in self.robot_pub:
                 self.robot_pub[layer_info.robot_sphere_publisher_name] = rospy.Publisher(f'{layer_info.robot_sphere_publisher_name}/robot_markers', MarkerArray, queue_size=10)
+
+    def getLayers(self):
+
+        return list(self.map_parameters.keys())
 
     def run(self, solution):
 
@@ -392,8 +401,8 @@ class ObstacleGeneratorWrapper:
         print("time to handle obstacles: ", time_obstacles)
         # self.time_obstacles_list.append(time_obstacles)
 
-    # def getObstacleDistances(self):
-    #     return self.obstacle_distances
+    def getObstacleDistances(self):
+        return self.obstacle_distances
 
     def getObstacleWeightParameter(self):
         return self.obs_weight_par_dict
