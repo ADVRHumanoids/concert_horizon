@@ -278,8 +278,9 @@ while not rospy.is_shutdown(): #and max_iter < 1000:
     #
     # if obstacle_avoidance:
     #     for layer_name in ogw.getLayers():
-    #         print(layer_name)
-    #         print(ti.solver_rti.getCostsValues()[f'obstacle_grid_{layer_name}_cost'])
+    #         if layer_name == "velodyne_map":
+    #             print(layer_name)
+    #             print(ti.solver_rti.getResidualValues()[f'obstacle_grid_{layer_name}'])
 
     # if obstacle_avoidance:
     #

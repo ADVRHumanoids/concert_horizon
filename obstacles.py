@@ -72,7 +72,7 @@ class ObstacleGeneratorWrapper:
 
 
         self.map_parameters["velodyne_map"] = ObstacleMapParameters(input_topic_name="/costmap_node/costmap/costmap",
-                                                                    robot_sphere_radius=np.array([0.6, 0.6]),
+                                                                    robot_sphere_radius=np.array([0.65, 0.65]),
                                                                     robot_sphere_origin=np.matrix([[0.3, -0.3],
                                                                                                    [0.0,  0.0]]),
                                                                     max_obs_num=50,
@@ -83,7 +83,7 @@ class ObstacleGeneratorWrapper:
                                                                     occupancy_map_width=6.0,
                                                                     occupancy_map_height=6.0,
                                                                     occupancy_map_resolution=0.01,
-                                                                    weight_cost_obs=0.1,
+                                                                    weight_cost_obs=0.2,
                                                                     robot_sphere_publisher_name="velodyne_map_publisher"
                                                                     )  # 0.001 # 0.0025
 
@@ -103,7 +103,7 @@ class ObstacleGeneratorWrapper:
                                                                     occupancy_map_width=2.0,
                                                                     occupancy_map_height=2.0,
                                                                     occupancy_map_resolution=0.01,
-                                                                    weight_cost_obs=0.1,
+                                                                    weight_cost_obs=0.2,
                                                                     rviz_markers_topic_name="sonar_map/obstacles",
                                                                     robot_sphere_publisher_name="sonar_map_publisher"
                                                                     )  # 0.001 # 0.0025
