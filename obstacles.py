@@ -156,11 +156,12 @@ class ObstacleGeneratorWrapper:
 
             layer_rgb = [random.uniform(0, 1), random.uniform(0, 1), random.uniform(0, 1)]
 
+            time_now = rospy.Time.now()
             for sphere_i in range(len(map_param.robot_sphere_radius)):
                 # publish robot sphere for obstacle avoidance
                 robot_marker = Marker()
                 robot_marker.header.frame_id = "base_link"  # Assuming the frame_id is 'base_link', change as necessary
-                robot_marker.header.stamp = rospy.Time.now()
+                robot_marker.header.stamp = time_now
                 robot_marker.ns = layer_name
                 robot_marker.id = sphere_i
                 robot_marker.type = Marker.SPHERE
@@ -181,6 +182,7 @@ class ObstacleGeneratorWrapper:
                 robot_marker.color.b = layer_rgb[2]
 
                 self.robot_markers[map_param.robot_sphere_publisher_name].markers.append(robot_marker)
+
 
     def __init_ros_publisher(self):
         self.robot_pub = dict()
@@ -203,7 +205,7 @@ class ObstacleGeneratorWrapper:
             obs_vec[generator_name] = generator.getObstacles()
 
         tic_obstacle_sense = time.time() - tic_obstacle
-        print("time to sense obstacles: ", tic_obstacle_sense)
+        # print("time to sense obstacles: ", tic_obstacle_sense)
 
         tic_assign = time.time()
 
@@ -227,13 +229,17 @@ class ObstacleGeneratorWrapper:
                     self.obs_origin_par_dict[map_name][obs_i_num].assign(obs_origin_sensed[:2])
 
         time_obstacle_assign = time.time() - tic_assign
-        print("time to assign values to obstacles: ", time_obstacle_assign)
+        # print("time to assign values to obstacles: ", time_obstacle_assign)
 
+        # ====================================== publish markers =========================================
         for publisher_name in self.robot_pub:
-            self.robot_pub[publisher_name].publish(self.robot_markers[publisher_name])
+            for marker in self.robot_markers[publisher_name].markers:
+                marker.header.stamp = rospy.Time.now()
 
+            self.robot_pub[publisher_name].publish(self.robot_markers[publisher_name])
+        # =================================================================================================
         time_obstacles = time.time() - tic_obstacle
-        print("time to handle obstacles: ", time_obstacles)
+        # print("time to handle obstacles: ", time_obstacles)
         # self.time_obstacles_list.append(time_obstacles)
 
     def getObstacleDistances(self):

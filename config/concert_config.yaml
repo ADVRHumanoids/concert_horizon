@@ -26,6 +26,7 @@ solver:
 costs:
   - ee_force
   - base_force
+  - ee_ori
 #  - ee_xy_force
 #  - ee_z_force
 #  - ee_ci
@@ -42,6 +43,7 @@ costs:
     - &w_acc 1e-2
     - &w_e_f 0. # starting with zero weight for ee task
     - &w_e_fb 0.
+    - &w_ori 1.
 #    - &w_e_xy_f 1.
 #    - &w_e_z_f 1.
 #    - &w_e_ci 1.
@@ -53,8 +55,8 @@ costs:
 
 ee_force:
   type: Cartesian
-  distal_link: ee_E
-  indices: [0, 1]
+  distal_link: drillnose_E
+  indices: [0, 1, 2]
   nodes: all
   weight: *w_e_f
 
@@ -64,6 +66,13 @@ base_force:
   indices: [3, 4, 5]
   nodes: all
   weight: *w_e_fb
+
+ee_ori:
+  type: Cartesian
+  distal_link: drillnose_E
+  indices: [3, 4]
+  nodes: all
+  weight: *w_ori
 
 #ee_xy_force:
 #  type: Cartesian
@@ -145,19 +154,19 @@ posture_arm:
 # todo: wrong, as the order COUNTS. If I add the contacts after the joint regularization, they wont get considered.
 velocity_regularization:
   type: Regularization
+  variable_name: v
   nodes: all
 #  indices: [0, 2, 4, 6,
 #            8, 9, 10, 11, 12, 13]
-  weight:
-    velocity: *w_vel
+  weight: *w_vel
 
 acceleration_regularization:
   type: Regularization
+  variable_name: a
   nodes: all
 #  indices: [ 0, 2, 4, 6,
 #             8, 9, 10, 11, 12, 13 ]
-  weight:
-    acceleration: *w_acc # 0.01
+  weight: *w_acc # 0.01
 
 #force_regularization:
 #  type: Regularization

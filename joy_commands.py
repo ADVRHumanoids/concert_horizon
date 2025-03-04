@@ -27,12 +27,12 @@ class JoyForce:
                             0])
 
             # reference = np.array([[solution['q'][0, 0] + rot_vec[0], solution['q'][1, 0] + rot_vec[1], 0., 0., 0., 0., 0.]]).T
-            self.force[:2] = vec[:2]
+            self.force = vec
 
         else:
             # move it back in the middle
             # reference = np.array([[solution['q'][0, 0], solution['q'][1, 0], 0., 0., 0., 0., 0.]]).T
-            self.force[:2] = np.zeros(2)
+            self.force = np.zeros(3)
 
 
         if np.abs(self.joy_msg.axes[4]) > 0.1:
@@ -65,7 +65,8 @@ class JoyForce:
         v = np.array([0, vector[0], vector[1], vector[2]])
 
         # rotate the vector p = q* v q
-        rotated_v = self._quaternion_multiply(quaternion, self._quaternion_multiply(v, self._conjugate_quaternion(quaternion)))
+        q_conj = self._conjugate_quaternion(quaternion)
+        rotated_v = self._quaternion_multiply(self._quaternion_multiply(v, quaternion), q_conj)
 
         # extract the rotated vector
         rotated_vector = rotated_v[1:]
