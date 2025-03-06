@@ -2,7 +2,7 @@
 
 from std_srvs.srv import SetBool
 import tf2_ros
-from geometry_msgs.msg import TransformStamped, WrenchStamped, PointStamped
+from geometry_msgs.msg import TransformStamped, WrenchStamped, PointStamped, TwistStamped
 from visualization_msgs.msg import Marker
 import rospy
 import numpy as np
@@ -27,6 +27,7 @@ class VirtualMassHandler:
         self.ns = ti.prb.getNNodes()
 
         self.__base_yaw_control_flag = True
+        self.__closed_integrated_state = True
 
         # m_virtual = np.array([50, 50])
         # k_virtual = np.array([50, 50])
@@ -36,11 +37,11 @@ class VirtualMassHandler:
         # self.m_virtual = np.array([50, 50, 50]) # 80 80 80 slow but good
         # self.k_virtual = np.array([0, 0, 0])
         # self.d_virtual = np.array([50, 50, 50]) # 70 70 70 slow but good
-        m_virtual = 100 # 150
+        m_virtual = 50 # 150
         d_virtual = 100 # 150
-        self.m_virtual = np.array([m_virtual, m_virtual, 100]) # 80 80 80 slow but good
+        self.m_virtual = np.array([100, 50, 200]) # 80 80 80 slow but good
         self.k_virtual = np.array([0, 0, 0])
-        self.d_virtual = np.array([d_virtual, d_virtual, 100]) # 70 70 70 slow but good
+        self.d_virtual = np.array([200, 100, 300]) # 70 70 70 slow but good
 
         # critical damping
         # 2 * np.sqrt(k_virtual[0] * m_virtual[0]
@@ -51,10 +52,23 @@ class VirtualMassHandler:
 
         self.ee_name = 'drillnose_E'
 
-        self.virtual_mass_controller = self.__init_virtual_mass_controller()
+        self.virtual_mass_controller = self.__init_virtual_mass_controller(self.m_virtual,
+                                                                           self.k_virtual,
+                                                                           self.d_virtual,
+                                                                           sys_dim=3)
         self.sys_dim = self.virtual_mass_controller.getDimension()
 
-        # ee task
+
+        if self.__base_yaw_control_flag:
+            m_virtual_yaw = 100
+            k_virtual_yaw = 100
+            d_virtual_yaw = 100
+            self.virtual_yaw_controller = self.__init_virtual_mass_controller(m_virtual_yaw,
+                                                                              k_virtual_yaw,
+                                                                              d_virtual_yaw,
+                                                                              sys_dim=1)
+
+            # ee task
         self.ee_task_name = 'ee_force'
         self.ee_task = ti.getTask(self.ee_task_name)
 
@@ -82,6 +96,12 @@ class VirtualMassHandler:
         self.ee_ori_name = "ee_ori"
         self.ee_ori_task = ti.getTask(self.ee_ori_name)
 
+        # set initial pose
+        self.virtual_mass_controller.setPositionReference(self.ee_initial_pos)
+
+        # set initial state
+        self.ee_integrated = np.vstack([self.ee_initial_pos, self.ee_initial_vel_lin])
+
         if self.__base_yaw_control_flag:
 
             ## base task
@@ -99,26 +119,17 @@ class VirtualMassHandler:
             # get yaw velocity of base
             self.base_initial_yaw_vel = self.base_fk_vel_fun(q=self.solution['q'][:, 0], qdot=self.solution['v'][:, 0])['ee_vel_angular'].full()[2]
 
-            # virtual mass controller initialized with x_ee-y_ee, yaw_base
-            self.ee_xy_base_yaw = np.array([[self.ee_initial_pos[0, 0], self.ee_initial_pos[1, 0], self.base_initial_yaw]]).T
-            self.ee_xy_base_yaw_vel = np.array([[self.ee_initial_vel_lin[0, 0], self.ee_initial_vel_lin[1, 0], self.base_initial_yaw_vel[0]]]).T
 
+            # virtual mass yaw controller initialized with yaw_base
             # set initial pose
-            self.virtual_mass_controller.setPositionReference(self.ee_xy_base_yaw)
+            self.virtual_yaw_controller.setPositionReference(self.base_initial_yaw)
 
             # set initial state
-            self.ee_integrated = np.vstack([self.ee_xy_base_yaw, self.ee_xy_base_yaw_vel])
+            self.ee_yaw_integrated = np.vstack([self.base_initial_yaw, self.base_initial_yaw_vel[0]])
 
             # get reference of base task force
             self.base_ref = self.base_force_task.getValues()
 
-        else:
-
-            # set initial pose
-            self.virtual_mass_controller.setPositionReference(self.ee_initial_pos)
-
-            # set initial state
-            self.ee_integrated = np.vstack([self.ee_initial_pos, self.ee_initial_vel_lin])
 
         # get reference of ee task force
         self.ee_wrench = np.zeros(6)
@@ -178,7 +189,11 @@ class VirtualMassHandler:
 
     def __init_publisher_ref(self):
 
-        self.__pub_ref = rospy.Publisher('/force_mpc/virtual_mass_reference', PointStamped, queue_size=10)
+        self.__ee_pos_ref_pub = rospy.Publisher('/virtual_mass/ee_position_reference', PointStamped, queue_size=10)
+        self.__ee_vel_ref_pub = rospy.Publisher('/virtual_mass/ee_velocity_reference', TwistStamped, queue_size=10)
+        self.__base_pos_ref_pub = rospy.Publisher('/virtual_mass/base_position_reference', PointStamped, queue_size=10)
+        self.__ee_integrated_pub = rospy.Publisher('/virtual_mass/ee_pos_integrated', PointStamped, queue_size=10)
+        self.__force_sensed_pub = rospy.Publisher('virtual_mass/force_sensed', WrenchStamped, queue_size=10)
 
 
     def __capture_homing(self, req):
@@ -203,11 +218,10 @@ class VirtualMassHandler:
         rospy.Subscriber('/force_estimation/local_filtered', WrenchStamped, self.__wrench_callback)  # /cartesian/force_estimation/ee_E
         print("done.")
 
-    def __init_virtual_mass_controller(self):
+    def __init_virtual_mass_controller(self, m_virtual, k_virtual, d_virtual, sys_dim):
 
-        sys_dim = 3
 
-        vmass_opt = dict(mass=self.m_virtual, damp=self.d_virtual, spring=self.k_virtual)
+        vmass_opt = dict(mass=m_virtual, damp=d_virtual, spring=k_virtual)
         return ForceJoystick(dt=self.dt, n_step=self.ns, sys_dim=sys_dim, opt=vmass_opt)
 
     def __wrench_callback(self, msg):
@@ -241,15 +255,15 @@ class VirtualMassHandler:
             # force_sensed_rot[2] = copy.copy(force_sensed_rot[1])
 
         self.__logger.log(f"{force_sensed_rot}")
+
         # compute virtual mass displacement
 
-        # with integrated state
-        # if self.operation_mode == OperationMode.HYBRID:
-            # uses world coordinates
-            # self.virtual_mass_controller.update(self.ee_integrated[:, 0], force_sensed_rot[:self.sys_dim])
-        # else:
+        if self.__closed_integrated_state:
+            self.virtual_mass_controller.update(self.ee_integrated[:, 0], force_sensed_rot[:self.sys_dim])
+        else:
+            self.virtual_mass_controller.update(np.vstack([ee_pos, ee_vel_lin]), force_sensed[:self.sys_dim])
 
-            # with real state
+
         if self.operation_mode == OperationMode.FOLLOW_ME and self.__base_yaw_control_flag:
 
             # get current yaw angle of the base
@@ -261,28 +275,18 @@ class VirtualMassHandler:
             base_yaw_vel = base_vel['ee_vel_angular'].full()[2]
 
             # cross product between force sensed (in world) and vector rotated as the base_link
-            force_sensed_rot[2] = np.cross(np.array(base_pose['ee_rot']) @ np.array([[1, 0, 0]]).T, force_sensed_rot.reshape((3, 1)), axis=0)[2]
+            force_yaw = np.cross(np.array(base_pose['ee_rot']) @ np.array([[1, 0, 0]]).T, force_sensed_rot.reshape((3, 1)), axis=0)[2]
 
             # using xy of ee and yaw of base
-            ee_x_base_yaw = np.zeros([3, 1])
-            ee_x_base_yaw[0] = ee_pos[0][0]
-            ee_x_base_yaw[1] = ee_pos[1][0]
-            ee_x_base_yaw[2] = base_yaw
+            ee_x_base_yaw = np.array(base_yaw)
+            ee_x_base_yaw_vel = np.array(base_yaw_vel)
 
-            ee_x_base_yaw_vel = np.zeros([3, 1])
-            ee_x_base_yaw_vel[0] = ee_vel_lin[0][0]
-            ee_x_base_yaw_vel[1] = ee_vel_lin[1][0]
-            ee_x_base_yaw_vel[2] = base_yaw_vel
+            self.virtual_yaw_controller.update(np.vstack([ee_x_base_yaw, ee_x_base_yaw_vel]), force_yaw)
 
-            self.virtual_mass_controller.update(np.vstack([ee_x_base_yaw, ee_x_base_yaw_vel]), force_sensed_rot[:self.sys_dim])
+            self.ee_yaw_integrated = self.virtual_yaw_controller.getIntegratedState()
 
-        else:
-            # using xyz of ee
-            self.virtual_mass_controller.update(np.vstack([ee_pos, ee_vel_lin]), force_sensed_rot[:self.sys_dim])
 
         self.ee_integrated = self.virtual_mass_controller.getIntegratedState()
-
-        return self.ee_integrated
 
     def setMode(self, mode):
 
@@ -322,7 +326,7 @@ class VirtualMassHandler:
         elif mode == OperationMode.HYBRID:
 
             # activate ee task
-            self.ee_task.setWeight(0.5)
+            self.ee_task.setWeight(1.0)
 
             # only for OMNISTEERING
             self.posture_cart_task.setWeight(0.)  # in velocity
@@ -408,7 +412,7 @@ class VirtualMassHandler:
         else:
             raise Exception('Wrong input mode')
 
-        self.force_sensed[np.abs(self.force_sensed) < 6.] = 0.
+        self.force_sensed[np.abs(self.force_sensed) < 10.] = 0.
 
         # get reference
         self.__integrate(self.solution['q'][:, 0],
@@ -416,16 +420,10 @@ class VirtualMassHandler:
                          self.force_sensed,
                          wrench_local_frame=True)
 
+        self.ee_ref[:self.sys_dim, :] = self.ee_integrated[:self.sys_dim, :]
 
         if self.operation_mode == OperationMode.FOLLOW_ME and self.__base_yaw_control_flag:
-            # using xyz of ee
-
-            self.ee_ref[:2, :] = self.ee_integrated[:2, :]
-            self.base_ref[3:7, :] = Rotation.from_euler('z', self.ee_integrated[2, :]).as_quat().T
-
-        else:
-            # using xy of ee and yaw of base
-            self.ee_ref[:self.sys_dim, :] = self.ee_integrated[:self.sys_dim, :]
+            self.base_ref[3:7, :] = Rotation.from_euler('z', self.ee_yaw_integrated[0, :]).as_quat().T
 
         if self.operation_mode != OperationMode.IDLE:
             self.ee_task.setRef(self.ee_ref)
@@ -433,14 +431,44 @@ class VirtualMassHandler:
                 self.base_force_task.setRef(self.base_ref)
             # self.ee_z_task.setRef(self.ee_ref)
 
+        # ee_rot_matrix = self.ee_fk_pose_fun(q=self.solution['q'][:, 0])['ee_rot']
+        # ee_pos_rot_ros = ee_rot_matrix @ self.ee_ref[:3, 0]
 
-        ee_ref_point = PointStamped()
-        ee_ref_point.header.stamp = rospy.Time.now()
-        ee_ref_point.point.x = self.ee_ref[0, 0]
-        ee_ref_point.point.y = self.ee_ref[1, 0]
-        ee_ref_point.point.z = self.ee_ref[2, 0]
+        ee_pos_ref_ros = PointStamped()
+        ee_pos_ref_ros.header.stamp = rospy.Time.now()
+        ee_pos_ref_ros.point.x = self.ee_ref[0, 0]
+        ee_pos_ref_ros.point.y = self.ee_ref[1, 0]
+        ee_pos_ref_ros.point.z = self.ee_ref[2, 0]
 
-        self.__pub_ref.publish(ee_ref_point)
+        if self.__base_yaw_control_flag:
+            base_ref_ros = PointStamped()
+            base_ref_ros.header.stamp = rospy.Time.now()
+            base_ref_ros.point.x = self.base_ref[0, 0]
+            base_ref_ros.point.y = self.base_ref[1, 0]
+            base_ref_ros.point.z = self.base_ref[2, 0]
+            self.__base_pos_ref_pub.publish(base_ref_ros)
+
+        ee_integrated_ros = PointStamped()
+        ee_integrated_ros.header.stamp = rospy.Time.now()
+        ee_integrated_ros.point.x = self.ee_integrated[0, 0]
+        ee_integrated_ros.point.y = self.ee_integrated[1, 0]
+        ee_integrated_ros.point.z = self.ee_integrated[2, 0]
+
+        ee_vel_ref_ros = TwistStamped()
+        ee_vel_ref_ros.header.stamp = rospy.Time.now()
+        ee_vel_ref_ros.twist.linear.x = self.ee_integrated[3, 0]
+        ee_vel_ref_ros.twist.linear.y = self.ee_integrated[4, 0]
+        ee_vel_ref_ros.twist.linear.z = self.ee_integrated[5, 0]
+
+        force_sensed_ros = WrenchStamped()
+        force_sensed_ros.wrench.force.x = self.force_sensed[0]
+        force_sensed_ros.wrench.force.y = self.force_sensed[1]
+        force_sensed_ros.wrench.force.z = self.force_sensed[2]
+
+        self.__ee_pos_ref_pub.publish(ee_pos_ref_ros)
+        self.__ee_vel_ref_pub.publish(ee_vel_ref_ros)
+        self.__ee_integrated_pub.publish(ee_integrated_ros)
+        self.__force_sensed_pub.publish(force_sensed_ros)
         # self.publish_tf(self.ee_ref)
         # self.publish_marker(self.ee_ref)
         self.__logger.log(f'operation mode: {self.operation_mode}')

@@ -16,6 +16,7 @@ from kyon_controller.msg import WBTrajectory
 from geometry_msgs.msg import Point, Twist, WrenchStamped, Quaternion
 import casadi as cs
 import rospy
+from modes import OperationMode
 import tf
 import rospkg
 import numpy as np
@@ -462,10 +463,10 @@ while not rospy.is_shutdown(): #and max_iter < 1000:
     vmc.run(solution)
 
     if obstacle_avoidance:
-        tic = time.time()
-        ogw.run(solution)
-        time_elapsed_obstacles = time.time() - tic
-        time_elapsed_obstacles_list.append(time_elapsed_obstacles)
+        if vmc.getMode() == OperationMode.FOLLOW_ME:
+            ogw.run(solution)
+            # time_elapsed_obstacles = time.time() - tic
+            # time_elapsed_obstacles_list.append(time_elapsed_obstacles)
 
     tic = time.time()
     ti.rti()
@@ -579,6 +580,6 @@ while not rospy.is_shutdown(): #and max_iter < 1000:
     # print(f"{colorama.Style.RED}MPC loop elapsed time: {time.time() - tic}{colorama.Style.RESET}")
 
 # print(f'average time elapsed shifting: {sum(time_elapsed_shifting_list) / len(time_elapsed_shifting_list)}')
-print(f'average time elapsed solving: {sum(time_elapsed_solving_list) / len(time_elapsed_solving_list)}')
-print(f'average time obstacles: {sum(time_elapsed_obstacles_list) / len(time_elapsed_obstacles_list)}')
-print(f'average time elapsed all: {sum(time_elapsed_all_list) / len(time_elapsed_all_list)}')
+# print(f'average time elapsed solving: {sum(time_elapsed_solving_list) / len(time_elapsed_solving_list)}')
+# print(f'average time obstacles: {sum(time_elapsed_obstacles_list) / len(time_elapsed_obstacles_list)}')
+# print(f'average time elapsed all: {sum(time_elapsed_all_list) / len(time_elapsed_all_list)}')
